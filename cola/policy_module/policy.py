@@ -1,5 +1,5 @@
 import shap
-from explainers import pshap
+from ..explainers import pshap
 import ot
 import numpy as np
 

@@ -1,7 +1,7 @@
 from .base_ce import CounterFactualExplainer
 import pandas as pd
 import numpy as np
-from model_module.pretrained_model import PreTrainedModel
+from ..model_module.pretrained_model import PreTrainedModel
 # from explainers import dce
 import dice_ml
 
@@ -69,70 +69,4 @@ class DiCE(CounterFactualExplainer):
         print(f'---- y_counterfactual has already been generated ----')
 
         return x_chosen.values, y_factual, x_counterfactual.values, y_counterfactual
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# # 具体实现类 KNNCounterfactualExplainer
-class KNNCounterfactualExplainer(CounterFactualExplainer):
-    def __init__(self, model, data):
-        super().__init__(model, data)
-
-    def ce(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        计算反事实解释
-        
-        参数:
-        data: DataFrame类型的数据变量
-        
-        返回:
-        DataFrame类型的反事实解释结果
-        """
-        counterfactuals = data.copy()
-        for col in counterfactuals.columns:
-            counterfactuals[col] = counterfactuals[col].apply(lambda x: x - np.random.uniform(-1, 1))
-        return counterfactuals
+    
