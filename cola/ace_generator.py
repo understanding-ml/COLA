@@ -28,7 +28,7 @@ class COLA:
     def generate_ace_counterfactual(self):
         
         # get model
-        self.ml_model = self.ml_model.load_model()
+        self.ml_model_true = self.ml_model.load_model()
 
         # get ce_algorithm
         ce_algorithm = self.counterfactualexplanation_algorithm()
@@ -36,7 +36,7 @@ class COLA:
 
         # get policy
         policies = policy.compute_intervention_policy(
-                            model= self.ml_model,   
+                            model= self.ml_model_true,   
                             X_train=0,    # X_train=x_train didn't use the X_train in this part
                             X_factual=x_factual,
                             X_counterfactual=x_counterfactual,
@@ -62,7 +62,7 @@ class COLA:
             x_action_constrained[row_idx, col_idx] = q_val
         
         # 5. get the prediction of action-constrained CE
-        y_counterfactual = self.ml_model.predict(x_action_constrained)
+        y_counterfactual = self.ml_model_true.predict(x_action_constrained)
 
         factual = self.return_dataframe(x_factual, y_factual)
         ce = self.return_dataframe(x_counterfactual, y_counterfactual)
@@ -79,7 +79,7 @@ class COLA:
         # x_labels = self.data.get_x_labels()
 
         if self.counterfactual_algorithm == 'dice':
-            A = DiCE(ml_model=self.ml_model, x_factual=x, target_name= target_name, sample_num=4)
+            A = DiCE(ml_model=self.ml_model_true, x_factual=x, target_name= target_name, sample_num=4)
             return A
 
 
