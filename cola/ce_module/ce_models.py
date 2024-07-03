@@ -4,12 +4,12 @@ import numpy as np
 from ..model_module.pretrained_model import PreTrainedModel
 # from explainers import dce
 import dice_ml
-
+from ..model import Model
 FACTUAL_CLASS = 1
 SHUFFLE_COUNTERFACTUAL = True
 
 class DiCE(CounterFactualExplainer):
-    def __init__(self, ml_model, x_factual:pd.DataFrame, target_name, sample_num):
+    def __init__(self, ml_model:Model, x_factual:pd.DataFrame, target_name, sample_num):
         super().__init__(ml_model,x_factual)
         self.target_name = target_name
         self.sample_num = sample_num

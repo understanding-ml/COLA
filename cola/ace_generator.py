@@ -1,4 +1,5 @@
 from .ce_module.ce_models import DiCE
+from .ce_module.base_ce import CounterFactualExplainer
 from .model import Model
 from .data import Data
 from .policy_module import policy
@@ -6,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 class COLA:
-    def __init__(self, ml_model=None, data=None, counterfactual_algorithm=None, policy_name="CF_OTMatch", Avalues_method="max", limited_actions=None):
+    def __init__(self, ml_model=Model, data=None, counterfactual_algorithm=None, policy_name="CF_OTMatch", Avalues_method="max", limited_actions=None):
         """
         Initialize the ACE_generator class
 
@@ -25,13 +26,13 @@ class COLA:
         # self.ce_algorithm =None
         # self.results = self.generate_counterfactual()
 
-    def generate_ace_counterfactual(self):
+    def generate_action_constrained_counterfactual(self):
         
         # get model
         self.ml_model_true = self.ml_model.load_model()
 
         # get ce_algorithm
-        ce_algorithm = self.counterfactualexplanation_algorithm()
+        ce_algorithm = self.counterfactual_explanation_algorithm()
         x_factual, y_factual, x_counterfactual, y_counterfactual = ce_algorithm.generate_x_counterfactuals()
 
         # get policy
@@ -71,7 +72,7 @@ class COLA:
         return factual, ce, ace
 
 
-    def counterfactualexplanation_algorithm(self):
+    def counterfactual_explanation_algorithm(self) -> CounterFactualExplainer:
         # get Data
         x = self.data.get_x()
         # y = self.data.get_y()
