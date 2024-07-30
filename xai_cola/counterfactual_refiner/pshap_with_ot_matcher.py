@@ -34,7 +34,7 @@ class PshapWithOTmatcher(Policy):
             x_action_constrained[row_idx, col_idx] = q_val
 
         # get model
-        self.ml_model_origin = self.ml_model.load_model()   
+        self.ml_model_origin = self.ml_model.model  
 
         # 5. get the prediction
         y_factual = self.ml_model.predict(self.x_factual)

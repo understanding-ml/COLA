@@ -16,7 +16,7 @@ class CounterFactualExplainer(ABC):
         self.data = data
         self.sample_num = sample_num
         
-        self.x_factual = data.get_x()
+        self.x_factual_pandas = data.get_x()
         self.target_name = data.get_target_name()
         
         self.factual, self.counterfactual = self.generate_counterfactuals()

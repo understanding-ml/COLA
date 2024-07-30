@@ -1,4 +1,3 @@
-import pandas as pd
 from .base_data import BaseData
 
 # data contains the x and y, including their labels

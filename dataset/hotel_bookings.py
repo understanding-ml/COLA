@@ -11,7 +11,7 @@ TEST_SIZE = 0.3
 class HotelBookingsDataset:
 
     def __init__(self):
-        self.data_path = "data/"
+        self.data_path = "rawdata/"
         self.name = "hotel_bookings"
         self.data_filename = f"{self.name}.csv"
         self.target_name = "is_canceled"
