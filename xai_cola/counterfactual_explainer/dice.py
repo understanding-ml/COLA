@@ -14,7 +14,7 @@ SHUFFLE_COUNTERFACTUAL = True
 
 class DiCE(CounterFactualExplainer):
 
-    def __init__(self, ml_model: Model, data: PandasData, sample_num):
+    def __init__(self, ml_model: Model, data: PandasData, sample_num):  # 根据需求增加输入变量
         super().__init__(ml_model, data, sample_num)
         
         self.factual, self.counterfactual = self.generate_counterfactuals()

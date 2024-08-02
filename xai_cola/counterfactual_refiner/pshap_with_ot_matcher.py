@@ -5,7 +5,6 @@ from .base_policy import Policy
 
 from xai_cola.data import BaseData
 from xai_cola.ml_model import BaseModel
-from xai_cola.counterfactual_explainer import DiCE, CounterFactualExplainer
 
 from xai_cola.cola.data_composer import DataComposer
 from xai_cola.cola.feature_attributor.base_attributor import Attributor
@@ -13,8 +12,12 @@ from xai_cola.cola.matching import BaseMatcher, CounterfactualOptimalTransportPo
 
 
 class PshapWithOTmatcher(Policy):
-    def __init__(self, data:BaseData, ml_model:BaseModel, explainer: CounterFactualExplainer, p: BaseMatcher, varphi: Attributor, q: DataComposer):
-        super().__init__(data, ml_model, explainer, p, varphi, q)
+    def __init__(
+            self, data:BaseData, ml_model:BaseModel, 
+            x_factual:np = None, x_counterfactual:np = None,
+            p: BaseMatcher = None, varphi: Attributor = None, q: DataComposer = None
+            ):
+        super().__init__(data, ml_model, x_factual, x_counterfactual, p, varphi, q)
 
     def counterfactual_with_limited_actions(self, limited_actions):
         self.limited_actions = limited_actions

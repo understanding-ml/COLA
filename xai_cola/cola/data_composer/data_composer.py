@@ -1,22 +1,18 @@
 import numpy as np
-from xai_cola.counterfactual_explainer import CounterFactualExplainer
-from xai_cola.cola.matching import CounterfactualOptimalTransportPolicy
+import string
+
 
 class DataComposer:
-    def __init__(self, explainer:CounterFactualExplainer, method):
-        self.explainer = explainer
+    def __init__(self, x_factual:np, x_counterfactual:np, joint_prob:np, method:string):
+        self.x_factual = x_factual
+        self.x_counterfactual = x_counterfactual
+        self.joint_probs = joint_prob
         self.method = method
 
-        self.x_factual = explainer.factual
-        self.x_counterfactual = explainer.counterfactual
-        self.joint_probs = 0
-
     def calculate_q(self):
-        counterfactual_explainer = CounterfactualOptimalTransportPolicy(self.explainer)
-        self.joint_probs = counterfactual_explainer.compute_prob_matrix_of_factual_and_counterfactual()
         q = A_values(W=self.joint_probs, R=self.x_counterfactual, method=self.method)
         return q
- 
+
 
 def A_values(W, R, method):
     N, M = W.shape

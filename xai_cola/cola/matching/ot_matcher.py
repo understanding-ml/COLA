@@ -1,5 +1,6 @@
 import ot
 import numpy as np
+
 from .base_matcher import BaseMatcher
 from xai_cola.counterfactual_explainer import CounterFactualExplainer
 
@@ -8,8 +9,8 @@ EPSILON = 1e-20
 SHAP_SAMPLE_SIZE = "auto"
 
 class CounterfactualOptimalTransportPolicy(BaseMatcher):
-    def __init__(self, explainer: CounterFactualExplainer):
-        super().__init__(explainer)
+    def __init__(self, x_factual: np, x_counterfactual: np):
+        super().__init__(x_factual, x_counterfactual)
 
         self.reg = 0   ## should input the reg 
         # self.method = method
