@@ -4,7 +4,7 @@ import numpy as np
 from .base_explainer import CounterFactualExplainer
 
 from xai_cola.ml_model import Model
-from xai_cola.data import PandasData
+from xai_cola.data import BaseData
 
 import dice_ml
 
@@ -14,20 +14,25 @@ SHUFFLE_COUNTERFACTUAL = True
 
 class DiCE(CounterFactualExplainer):
 
-    def __init__(self, ml_model: Model, data: PandasData, sample_num):  # 根据需求增加输入变量
+    def __init__(self, ml_model: Model, data, sample_num):  # 根据需求增加输入变量
         super().__init__(ml_model, data, sample_num)
-        
-        self.factual, self.counterfactual = self.generate_counterfactuals()
+        self.factual, self.counterfactual = self.generate_counterfactuals()    # numpy type without 'target' column
     
     def get_factual_indices(self):
         x_factual_ext = self.x_factual_pandas.copy()
-        predict = self.ml_model.predict(self.x_factual_pandas)
-        x_factual_ext[self.target_name] = predict
+        print(f'x_factual_ext: {x_factual_ext}')
+        print(f'x_factual_ext.shape: {x_factual_ext.shape}')
+        # 
+
+        prediction = self.ml_model.predict(self.x_factual_pandas)
+
+        print(f'predict: {prediction}')
+        x_factual_ext[self.target_name] = prediction
         sampling_weights = np.exp(x_factual_ext[self.target_name].values.clip(min=0) * 4)
         indices = (x_factual_ext.sample(self.sample_num, weights=sampling_weights)).index
         return indices, x_factual_ext
 
-    def generate_counterfactuals(self) -> pd.DataFrame:
+    def generate_counterfactuals(self):
         
         # DICE counterfactual generation logic
         indices, x_factual_ext = self.get_factual_indices()
@@ -38,7 +43,7 @@ class DiCE(CounterFactualExplainer):
         dice_model = dice_ml.Model(model=self.ml_model, backend=self.ml_model.backend) #'sklearn'
         dice_features = x_chosen.columns.to_list()   #exclude 'Risk'
         dice_data = dice_ml.Data(
-            dataframe = x_factual_ext,             # x_factual with 'Risk'
+            dataframe = x_factual_ext,             # The train dataframe used by explainer method.
             continuous_features = dice_features,   # exclude 'Risk'
             outcome_name =self.target_name,              # 'Risk'
         )
@@ -66,3 +71,5 @@ class DiCE(CounterFactualExplainer):
         factual = x_chosen.values
         counterfactual = df_counterfactual.values
         return factual , counterfactual   # return x and r    
+    
+    

@@ -1,11 +1,11 @@
 import torch
 import torch.nn as nn
 import numpy as np
-
+import pandas as pd
 
 class PyTorchDNN(nn.Module):
     def __init__(self, input_dim, hidden_dim=10):
-        super(PyTorchDNN, self).__init__()
+        super().__init__()
 
         self.name = "dnn"
 
@@ -28,11 +28,22 @@ class PyTorchDNN(nn.Module):
         return self.sigmoid(self.fc3(x))
 
     def predict(self, x):
-        x = torch.FloatTensor(x)
+
+        # 如果输入是 pandas DataFrame，则转换为 torch.FloatTensor
+        if isinstance(x, pd.DataFrame):
+            x = torch.FloatTensor(x.values)
+        else:
+            x = torch.FloatTensor(x)
+            
         return (self(x).reshape(-1) > 0.5).float().detach().numpy()
 
     def predict_proba(self, x):
-        x = torch.FloatTensor(x)
+        # 如果输入是 pandas DataFrame，则转换为 torch.FloatTensor
+        if isinstance(x, pd.DataFrame):
+            x = torch.FloatTensor(x.values)
+        else:
+            x = torch.FloatTensor(x)
+
         # Forward pass to get output probabilities for class 1
         probs_class1 = self(x).reshape(-1).detach().numpy()
         # Calculate probabilities for class 0

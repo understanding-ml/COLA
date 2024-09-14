@@ -1,3 +1,4 @@
+import numpy as np
 from .base_data import BaseData
 
 # data contains the x and y, including their labels
@@ -31,3 +32,5 @@ class PandasData(BaseData):
         a = self.data.drop(columns=[self.target_name]).copy()
         return a.columns
     
+    def get_numpy(self) -> np.array:
+        return self.data.values

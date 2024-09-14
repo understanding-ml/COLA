@@ -13,7 +13,8 @@ from xai_cola.counterfactual_refiner import Policy, PshapWithOTmatcher
 class COunterfactualwithLimitedActions:
     def __init__(
             self, data: BaseData, ml_model: BaseModel,
-            explainer: CounterFactualExplainer = None, x_factual: np = None, x_counterfactual: np = None, 
+            explainer: CounterFactualExplainer = None, 
+            x_factual: np = None, x_counterfactual: np = None, 
             matcher: string = None, attributor: string = None, Avalues_method: string = None, 
             limited_actions=None,
             ):

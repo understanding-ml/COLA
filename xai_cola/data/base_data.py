@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import pandas as pd
-
+import numpy as np
 class BaseData(ABC):
     def __init__(self, data, target_name):
         """
@@ -30,4 +30,7 @@ class BaseData(ABC):
         pass
 
     def get_x_labels(self):
+        pass
+
+    def get_numpy(self) -> np.array:
         pass
