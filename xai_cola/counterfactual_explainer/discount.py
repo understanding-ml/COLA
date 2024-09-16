@@ -24,12 +24,28 @@ logger = setup_logger()
 
 
 class DisCount(CounterFactualExplainer):
-    def __init__(
-            self, 
-            ml_model: Model, 
-            data: BaseData, 
-            sample_num,
+    def __init__(self, ml_model: Model, data: BaseData=None):
+        super().__init__(ml_model, data)
 
+
+    """
+    Since we no more use the sample_num right now, we can remove the method 'get_factual_indices()'
+    We will generate all the input data as factuals and return the counterfactuals throught the generate_counterfactuals method
+    """
+    # def get_factual_indices(self):  
+    #     # input: X_factual_pandas(dataframe, without target_column), model, target_name, sample_num 
+    #     X_test_ext = self.x_factual_pandas.copy()
+    #     X_test_ext[self.target_name] = self.ml_model.predict(self.x_factual_pandas.values)
+    #     sampling_weights = np.exp(X_test_ext[self.target_name].values.clip(min=0) * 4)
+    #     indices = (X_test_ext.sample(self.sample_num, weights=sampling_weights)).index
+    #     # Select indices from the target_name column according to weights, where entries with risk=1 are more likely to be selected
+    #     return indices
+
+
+    def generate_counterfactuals(
+            self,
+            data: BaseData=None,
+            
             # below is unnecessary to be passed as arguments
             lr=1e-1,
             n_proj=10,
@@ -39,7 +55,7 @@ class DisCount(CounterFactualExplainer):
             l=0.2,
             r=1,
             max_iter=15,
-            tau=1e3,
+            tau=1e2,   #差值变化 - 步长不能太大或者太小
             silent=False,
             ):
         self.lr = lr
@@ -52,45 +68,25 @@ class DisCount(CounterFactualExplainer):
         self.max_iter = max_iter
         self.tau = tau
         self.silent = silent
-        super().__init__(ml_model, data, sample_num)
+        # Call the data processing logic from the parent class
+        self._process_data(data)
 
-        self.factual, self.counterfactual = self.generate_counterfactuals()
+        # indices = self.get_factual_indices()
+        # df_factual = self.x_factual_pandas.loc[indices]
 
-    def get_factual_indices(self):  # input: X_factual_pandas(dataframe), model, target_name, sample_num 
-        
-        X_test_ext = self.x_factual_pandas.copy()
-        X_test_ext[self.target_name] = self.ml_model.predict(self.x_factual_pandas.values)
-        sampling_weights = np.exp(X_test_ext[self.target_name].values.clip(min=0) * 4)
-        indices = (X_test_ext.sample(self.sample_num, weights=sampling_weights)).index
-        # Select indices from the target_name column according to weights, where entries with risk=1 are more likely to be selected
-        return indices
+        x_chosen = self.x_factual_pandas # factual, dataframe type, without target_column
 
-
-    def generate_counterfactuals(self):
-        # lr=1e-1,
-        # n_proj=10,
-        # delta=0.05,
-        # U_1=0.4,
-        # U_2=0.3,
-        # l=0.2,
-        # r=1,
-        # max_iter=50,
-        # tau=1e3,
-        # silent=False,
-
-        indices = self.get_factual_indices()
-        df_factual = self.x_factual_pandas.loc[indices]
-        df_factual_ext = df_factual.copy()
-        df_factual_ext[self.target_name] = self.ml_model.predict(df_factual.values)
+        df_factual_ext = x_chosen.copy()
+        df_factual_ext[self.target_name] = self.ml_model.predict(x_chosen.values)
         
         y_target = torch.FloatTensor(
-            [1 - FACTUAL_CLASS for _ in range(df_factual.shape[0])]
+            [1 - FACTUAL_CLASS for _ in range(x_chosen.shape[0])]
         )
 
         discount_explainer = DistributionalCounterfactualExplainer(
             model = self.ml_model,
-            df_X = df_factual,
-            explain_columns = df_factual.columns,
+            df_X = x_chosen,
+            explain_columns = x_chosen.columns,
             y_target = y_target,
             lr = self.lr,
             n_proj = self.n_proj,
@@ -109,7 +105,7 @@ class DisCount(CounterFactualExplainer):
         df_counterfactual = pd.DataFrame(
             discount_explainer.best_X.detach().numpy(),
             columns=discount_explainer.explain_columns,
-            index=df_factual.index,
+            index=x_chosen.index,
         )
         if SHUFFLE_COUNTERFACTUAL:
             df_counterfactual = df_counterfactual.sample(frac=1).reset_index(drop=True)
@@ -117,7 +113,7 @@ class DisCount(CounterFactualExplainer):
         X_counterfactual = df_counterfactual.values
         y_counterfactual = self.ml_model.predict(X_counterfactual)
 
-        return df_factual.values, X_counterfactual
+        return x_chosen.values, X_counterfactual
 
 
 class WassersteinDivergence:

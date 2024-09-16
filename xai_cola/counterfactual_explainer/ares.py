@@ -9,41 +9,46 @@ SHUFFLE_COUNTERFACTUAL = True
 
 class ARecourseS(CounterFactualExplainer):  # need the feature tree
 
-    def __init__(
+    def __init__(self, ml_model: Model, data: BaseData=None):
+        super().__init__(ml_model, data)
+
+    """
+    Since we no more use the sample_num right now, we can remove the method 'get_factual_indices()'
+    We will generate all the input data as factuals and return the counterfactuals throught the generate_counterfactuals method
+    """
+    # def get_factual_indices(self):  # input: X_factual_pandas(dataframe), model, target_name, sample_num 
+    #     X_test_ext = self.x_factual_pandas.copy()
+    #     X_test_ext[self.target_name] = self.ml_model.predict(self.x_factual_pandas.values)
+    #     sampling_weights = np.exp(X_test_ext[self.target_name].values.clip(min=0) * 4)
+    #     indices = (X_test_ext.sample(self.sample_num, weights=sampling_weights)).index
+    #     # Select indices from the target_name column according to weights, where entries with risk=1 are more likely to be selected
+    #     return indices
+
+    def generate_counterfactuals(
             self, 
-            ml_model: Model, 
-            data: BaseData, 
-            sample_num,         # number of counterfactuals to generate
-
-            # additional parameters in AReS
-            input_factual_num,  # number of factuals (because n factuals generate 1 counterfactual)
             dataset_ares,       # need the feature tree 
-            ):
-
-        super().__init__(ml_model, data, sample_num)
-
-        self.input_factual_num = input_factual_num
-        self.dataset_ares = dataset_ares
-        self.factual, self.counterfactual = self.generate_counterfactuals()
-
-
-    def get_factual_indices(self):  # input: X_factual_pandas(dataframe), model, target_name, sample_num 
+            data: BaseData = None,
+            ) -> np.ndarray:
+        """
+        Generate counterfactuals for the given factual data
         
-        X_test_ext = self.x_factual_pandas.copy()
-        X_test_ext[self.target_name] = self.ml_model.predict(self.x_factual_pandas.values)
-        sampling_weights = np.exp(X_test_ext[self.target_name].values.clip(min=0) * 4)
-        indices = (X_test_ext.sample(self.sample_num, weights=sampling_weights)).index
-        # Select indices from the target_name column according to weights, where entries with risk=1 are more likely to be selected
-        return indices
+        Parameters:
+        data: BaseData type, the factual data(don't need target column)
+        !!!!!    need to be transformed to the specific 'ares_numpy_data'/'ares_pandas_data' !!!!
+        !!!!!    Because we need to add the dataset_ares to it !!!!
+        params: additional parameters in AReS
 
-    def generate_counterfactuals(self):
-        indices = self.get_factual_indices()
-        df_factual = self.x_factual_pandas.loc[indices]
+        """    
+        self._process_data(data)
+        self.dataset_ares = dataset_ares
 
+        # indices = self.get_factual_indices()
+        # df_factual = self.x_factual_pandas.loc[indices]
+        x_chosen = self.x_factual_pandas
         ares = AReS(
             model=self.ml_model,
             dataset=self.dataset_ares,  # dataset with feature tree
-            X=df_factual,   # without target column
+            X=x_chosen,   # without target column
             n_bins=10,
             normalise=None,
         )
@@ -71,15 +76,9 @@ class ARecourseS(CounterFactualExplainer):  # need the feature tree
         X_counterfactual = df_counterfactual.values
         y_counterfactual = self.ml_model.predict(X_counterfactual)
 
-        final_sample_num = min(df_factual.shape[0], df_counterfactual.shape[0])
+        final_sample_num = min(x_chosen.shape[0], df_counterfactual.shape[0])
 
-        # Compare final_sample_num with self.sample_num
-        if self.sample_num <= final_sample_num:
-            final_sample_num = self.sample_num
-        else:
-            print(f"Final sample number is only {final_sample_num}, cannot generate the requested {self.sample_num} counterfactuals.")
-
-        X_factual = df_factual.sample(final_sample_num).values
+        X_factual = x_chosen.sample(final_sample_num).values
         y_factual = self.ml_model.predict(X_factual)
         
         return X_factual, X_counterfactual
