@@ -6,18 +6,19 @@ class PandasData(BaseData):
     def __init__(self, data, target_name):
         super().__init__(data, target_name)
     
-    def get_dataframe(self):
-        """
-        Return the DataFrame stored in the class
-        """
-        return self.data
+    # we don't need input data with target column
+    # def get_dataframe(self):
+    #     """
+    #     Return the DataFrame stored in the class
+    #     """
+    #     return self.data
     
     def get_x(self):
         """
         Return the DataFrame excluding the target column
         """
-        x_factual  = self.data.drop(columns=[self.target_name]).copy()
-        return x_factual
+        # x_factual  = self.data.drop(columns=[self.target_name]).copy()
+        return self.data
     
     def get_y(self):
         """
@@ -29,8 +30,8 @@ class PandasData(BaseData):
         return self.target_name
     
     def get_x_labels(self):
-        a = self.data.drop(columns=[self.target_name]).copy()
-        return a.columns
+
+        return self.data.columns
     
     def get_numpy(self) -> np.array:
         return self.data.values

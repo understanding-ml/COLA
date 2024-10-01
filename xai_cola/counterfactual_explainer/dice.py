@@ -9,8 +9,8 @@ from xai_cola.data import BaseData
 import dice_ml
 
 
-FACTUAL_CLASS = 1
-SHUFFLE_COUNTERFACTUAL = True
+
+SHUFFLE_COUNTERFACTUAL = False
 
 class DiCE(CounterFactualExplainer):
 
@@ -39,14 +39,18 @@ class DiCE(CounterFactualExplainer):
     def generate_counterfactuals(
             self, 
             data:BaseData=None,
-
+            factual_class:int=1,
+            total_cfs:int=1,
             ) -> np.ndarray:
 
         """
         Generate counterfactuals for the given factual
 
         Parameters:
-        data: BaseData type, the factual data(don't need target column)
+        param data: BaseData type, the factual data(don't need target column)
+        param factual_class: The class of the factual data(Normally, we set the factual_class as the value 1 as the prediction of factual data is 1. And we hope the prediction of counterfactual data is 0)
+        param total_CFs: Total number of counterfactuals required(of each query_instance).
+
         params: parameters for specific counterfactual algorithm
 
         return:
@@ -60,21 +64,23 @@ class DiCE(CounterFactualExplainer):
         # indices, x_factual_ext = self.get_factual_indices()
         # x_chosen = self.x_factual_pandas.loc[indices]
         x_chosen = self.x_factual_pandas
+        x_with_targetcolumn = x_chosen.copy() 
+        x_with_targetcolumn[self.target_name] = self.ml_model.predict(x_chosen.values)
 
         # Prepare for DiCE
         dice_model = dice_ml.Model(model=self.ml_model, backend=self.ml_model.backend) #'sklearn'
         dice_features = x_chosen.columns.to_list() 
         dice_data = dice_ml.Data(
-            dataframe = x_chosen,                 # factual, pd.DataFrame, without target column
+            dataframe = x_with_targetcolumn,                 # factual, pd.DataFrame, with target column
             continuous_features = dice_features, 
             outcome_name =self.target_name,   
         )
         dice_explainer = dice_ml.Dice(dice_data, dice_model)
         dice_results = dice_explainer.generate_counterfactuals(
-            query_instances = x_chosen,
+            query_instances = x_chosen,                     # factual, pd.DataFrame, without target column
             features_to_vary = dice_features,
-            desired_class=1 - FACTUAL_CLASS,
-            total_CFs=1,
+            desired_class=1 - factual_class,               # desired class is 0
+            total_CFs=total_cfs,
         )
 
         # Iterate through each result and append to the DataFrame

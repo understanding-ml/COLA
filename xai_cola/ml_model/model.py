@@ -11,22 +11,16 @@ PYTORCH_MODELS = [
 ]
 
 class Model(BaseModel):
+    """Classwrapper for pre-trained models."""
     def __init__(self, model, backend):
         super().__init__(model, backend)
 
-    # def predict(self, x_factual) -> pd.DataFrame:
-    #     """
-    #     Generate predictions using the pre-trained model
-        
-    #     Returns:
-    #     DataFrame type prediction results
-    #     """
-    #     predictions = self.model.predict(x_factual)
-    #     if isinstance(predictions, pd.Series):
-    #         predictions = predictions.to_frame(name='Prediction')
-    #     elif isinstance(predictions, np.ndarray):
-    #         predictions = pd.DataFrame(predictions, columns=['Prediction'])
-    #     return predictions
+        """Initialize the Model class
+            
+        :param model: Pre-trained model
+        :param backend: "TF1" ("TF2") for TensorFLow 1.0 (2.0), "PYT" for PyTorch implementations, "sklearn" for Scikit-Learn implementations of standard
+            (typically for Dice)
+        """
 
     def predict(self, x_factual):
         """

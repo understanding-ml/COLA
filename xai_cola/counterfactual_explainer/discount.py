@@ -1,4 +1,4 @@
-# The code originates from https://github.com/youlei202/distributional-counterfactual-explanation
+# The majority of code originates from https://github.com/youlei202/distributional-counterfactual-explanation
 # Paper for reference:
 # L. You, L. Cao, M. Nilsson, B. Zhao, and L. Lei.
 # DIStributional COUNTerfactual Explanation With Optimal Transport
@@ -6,26 +6,29 @@ import ot
 import numpy as np
 import pandas as pd
 import math
-import torch
 from typing import Optional
-
+from tqdm import tqdm
+import torch
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+
 from xai_cola.data.base_data import BaseData
 from xai_cola.ml_model.model import Model
 from xai_cola.utils.logger_config import setup_logger
 from xai_cola.counterfactual_explainer import auxiliary as aux
-from tqdm import tqdm
 from .base_explainer import CounterFactualExplainer
 
-FACTUAL_CLASS = 1
-SHUFFLE_COUNTERFACTUAL = True
+
+SHUFFLE_COUNTERFACTUAL = False
 logger = setup_logger()
 
+"""
+ATTENTION: The class DisCount is only compatiable with PyTorch models(backend:"PYT")
+"""
 
 class DisCount(CounterFactualExplainer):
-    def __init__(self, ml_model: Model, data: BaseData=None):
-        super().__init__(ml_model, data)
+    def __init__(self, ml_model: Model):
+        super().__init__(ml_model)
 
 
     """
@@ -47,6 +50,7 @@ class DisCount(CounterFactualExplainer):
             data: BaseData=None,
             
             # below is unnecessary to be passed as arguments
+            factual_class=1,
             lr=1e-1,
             n_proj=10,
             delta=0.05,
@@ -55,9 +59,28 @@ class DisCount(CounterFactualExplainer):
             l=0.2,
             r=1,
             max_iter=15,
-            tau=1e2,   #差值变化 - 步长不能太大或者太小
+            tau=1e2,   # can't be too large or too small
             silent=False,
             ):
+        """ Implement the DisCount algorithm to generate counterfactuals, Below is to adjust the parameters of the optimization function.
+
+            Parameters:       
+            :param factual_class: The class of the factual data(Normally, we set the factual_class as the value 1 as the prediction of factual data is 1. And we hope the prediction of counterfactual data is 0)
+            :param lr: learning rate
+            :param n_proj: number of projections
+            :param delta: trimming constant
+            :param U_1: upper bound for the Wasserstein distance
+            :param U_2: upper bound for the sliced Wasserstein distance
+            :param l: lower bound for the interval narrowing
+            :param r: upper bound for the interval narrowing
+            :param max_iter: maximum number of iterations
+            :param tau: step size
+            :param silent: whether to print the log information
+
+            :return: the factual data and the counterfactual data (numpy.ndarray type)
+        
+        
+        """
         self.lr = lr
         self.n_proj = n_proj
         self.delta = delta
@@ -80,7 +103,7 @@ class DisCount(CounterFactualExplainer):
         df_factual_ext[self.target_name] = self.ml_model.predict(x_chosen.values)
         
         y_target = torch.FloatTensor(
-            [1 - FACTUAL_CLASS for _ in range(x_chosen.shape[0])]
+            [1 - factual_class for _ in range(x_chosen.shape[0])]
         )
 
         discount_explainer = DistributionalCounterfactualExplainer(
