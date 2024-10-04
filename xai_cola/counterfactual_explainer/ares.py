@@ -1,3 +1,14 @@
+"""
+
+The code originates from https://github.com/danwley/GLOBE-CE/blob/main/ares.py
+
+Paper for reference:
+Ley, Dan, Saumitra Mishra, and Daniele Magazzeni.
+"GLOBE-CE: a translation based approach for global counterfactual explanations.
+" International Conference on Machine Learning. PMLR, 2023.
+
+"""
+
 import pandas as pd
 import numpy as np
 from .base_explainer import CounterFactualExplainer
@@ -84,16 +95,9 @@ class ARecourseS(CounterFactualExplainer):  # need the feature tree
         return X_factual, X_counterfactual
 
 
-
-
-
-
-# The code originates from https://github.com/danwley/GLOBE-CE/blob/main/ares.py
-# Paper for reference:
-# Ley, Dan, Saumitra Mishra, and Daniele Magazzeni.
-# "GLOBE-CE: a translation based approach for global counterfactual explanations.
-# " International Conference on Machine Learning. PMLR, 2023.
-
+"""
+-------------------------------------------------Original AReS Code-------------------------------------------------------------
+"""
 from mlxtend.frequent_patterns import apriori
 from tqdm import tqdm
 from sklearn import preprocessing

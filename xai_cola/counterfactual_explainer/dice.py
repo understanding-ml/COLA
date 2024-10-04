@@ -1,12 +1,18 @@
+"""
+    The algorithm we used is DiCE, from: https://github.com/interpretml/DiCE
+
+    Paper for reference: 
+    Explaining machine learning classifiers through diverse counterfactual explanations, from: https://doi.org/10.1145/3351095.3372850
+
+"""
+
 import pandas as pd
 import numpy as np
+import dice_ml
 
 from .base_explainer import CounterFactualExplainer
-
 from xai_cola.ml_model import Model
 from xai_cola.data import BaseData
-
-import dice_ml
 
 SHUFFLE_COUNTERFACTUAL = False
 

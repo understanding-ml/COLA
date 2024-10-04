@@ -1,7 +1,11 @@
-# The majority of code originates from https://github.com/youlei202/distributional-counterfactual-explanation
-# Paper for reference:
-# L. You, L. Cao, M. Nilsson, B. Zhao, and L. Lei.
-# DIStributional COUNTerfactual Explanation With Optimal Transport
+"""
+    The majority of code originates from https://github.com/youlei202/distributional-counterfactual-explanation
+   
+    Paper for reference:
+    L. You, L. Cao, M. Nilsson, B. Zhao, and L. Lei.
+    DIStributional COUNTerfactual Explanation With Optimal Transport
+
+"""
 import ot
 import numpy as np
 import pandas as pd

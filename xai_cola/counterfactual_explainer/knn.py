@@ -1,3 +1,16 @@
+"""
+    The majority of code originates from below:
+    
+    Author: Emanuele Albini
+
+    This module contains base classes and interfaces (protocol in Python jargon).
+
+    Note: this module contains classes that are more general than needed for this package.
+    This is to allow for future integration in a more general XAI package.
+
+    Most of the interfaces, base classes and methods are self-explanatory.
+
+"""
 import numpy as np
 import pandas as pd
 from xai_cola.data.base_data import BaseData
@@ -8,7 +21,11 @@ from .base_explainer import CounterFactualExplainer
 FACTUAL_CLASS = 1
 SHUFFLE_COUNTERFACTUAL = True
 
-# 似乎是用来处理（非标准化后的）数据？
+"""
+Attention!
+This KNN algorithm can only search the counterfactual from all your input data! which means that you should input many data and the target values should have both 0 and 1.
+"""
+
 class KNN(CounterFactualExplainer):
     def __init__(self, ml_model:Model, data:BaseData=None):
         super().__init__(ml_model, data)
@@ -65,9 +82,6 @@ class KNN(CounterFactualExplainer):
         y_counterfactual = self.ml_model.predict(X_counterfactual)
 
         return X_factual, X_counterfactual
-
-
-
 
 
 """

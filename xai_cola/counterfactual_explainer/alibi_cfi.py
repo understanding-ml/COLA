@@ -1,19 +1,17 @@
 """
+
 The ALIBI CounterfactualInstances is copid from https://docs.seldon.io/projects/alibi/en/latest/methods/CF.html 
+
 """
-
-
 import pandas as pd
 import numpy as np
 import tensorflow as tf
 tf.compat.v1.disable_eager_execution()
-
 import alibi
 
 from xai_cola.data import BaseData
 from xai_cola.ml_model.model import Model
 from .base_explainer import CounterFactualExplainer
-
 
 
 class AlibiCounterfactualInstances(CounterFactualExplainer):

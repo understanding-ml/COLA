@@ -11,7 +11,7 @@ TEST_SIZE = 0.3
 class GermanCreditDataset:
 
     def __init__(self):
-        self.data_path = "rawdata/"
+        self.data_path = "dataset/rawdata/"
         self.name = "german_credit"
         self.data_filename = f"{self.name}.csv"
         self.target_name = "Risk"

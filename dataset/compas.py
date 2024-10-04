@@ -11,7 +11,7 @@ TEST_SIZE = 0.2
 class CompasDataset:
 
     def __init__(self, dataset_ares):
-        self.data_path = "rawdata/"
+        self.data_path = "dataset/rawdata/"
         self.name = "compas"
         self.data_filename = f"{self.name}.csv"
         self.target_name = "Status"
