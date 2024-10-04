@@ -6,13 +6,6 @@ class PandasData(BaseData):
     def __init__(self, data, target_name):
         super().__init__(data, target_name)
     
-    # we don't need input data with target column
-    # def get_dataframe(self):
-    #     """
-    #     Return the DataFrame stored in the class
-    #     """
-    #     return self.data
-    
     def get_x(self):
         """
         Return the DataFrame excluding the target column

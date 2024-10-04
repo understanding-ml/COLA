@@ -9,11 +9,9 @@ class NumpyData(BaseData):
         
         Parameters:
         data (numpy.ndarray): The dataset as a NumPy array.
-        target_index (int): The index of the target column in the dataset.
         feature_names (list): List of feature names (optional).
         target_name (str): Name of the target column (optional).
         """
-        # self.target_index = target_index
         self.feature_names = feature_names if feature_names is not None else [f"feature_{i}" for i in range(data.shape[1] - 1)]
         self.df = self._create_dataframe()
 
@@ -41,3 +39,9 @@ class NumpyData(BaseData):
         Return the labels of the feature columns
         """
         return self.df.columns
+    
+    def get_numpy(self):
+        """
+        Return the numpy array
+        """
+        return self.df.values

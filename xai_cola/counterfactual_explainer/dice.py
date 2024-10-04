@@ -8,14 +8,16 @@ from xai_cola.data import BaseData
 
 import dice_ml
 
-
-
 SHUFFLE_COUNTERFACTUAL = False
 
 class DiCE(CounterFactualExplainer):
 
     def __init__(self, ml_model: Model, data:BaseData=None):
         super().__init__(ml_model, data)
+        if self.ml_model.backend == 'sklearn':
+            self.ml_model.backend = 'sklearn'
+        elif self.ml_model.backend == 'pytorch':
+            self.ml_model.backend = 'PYT'
     
 
     """

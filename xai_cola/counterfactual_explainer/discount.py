@@ -23,7 +23,7 @@ SHUFFLE_COUNTERFACTUAL = False
 logger = setup_logger()
 
 """
-ATTENTION: The class DisCount is only compatiable with PyTorch models(backend:"PYT")
+ATTENTION: The class DisCount is only compatiable with PyTorch models(backend:"pytorch")
 """
 
 class DisCount(CounterFactualExplainer):
@@ -77,9 +77,8 @@ class DisCount(CounterFactualExplainer):
             :param tau: step size
             :param silent: whether to print the log information
 
-            :return: the factual data and the counterfactual data (numpy.ndarray type)
-        
-        
+            Return: 
+            the factual data and the counterfactual data (numpy.ndarray type)
         """
         self.lr = lr
         self.n_proj = n_proj

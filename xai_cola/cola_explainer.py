@@ -59,7 +59,7 @@ class COunterfactualwithLimitedActions:
     def get_matcher(self):
         if self.matcher == "ot":
             return CounterfactualOptimalTransportPolicy(self.x_factual, self.x_counterfactual).compute_prob_matrix_of_factual_and_counterfactual()
-        elif self.matcher == "uniform":
+        elif self.matcher == "cem":
             pass
 
     def get_attributor(self):

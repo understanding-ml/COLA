@@ -10,18 +10,19 @@ class BaseModel(ABC):
         model: Pre-trained model
         """
         self.model = model
-        self.backend = backend
-        
+        self.backend = backend.lower()
+        if self.backend not in ['pytorch', 'sklearn', 'tensorflow1', 'tensorflow2']:
+                raise ValueError("Framework must be one of 'pytorch', 'sklearn', 'tensorflow1', 'tensorflow2'")
 
-    @abstractmethod
-    def predict(self, data: pd.DataFrame) -> pd.DataFrame:
+
+    def predict(self, data):
         """
-        Input data variable and generate predictions
-        
-        Parameters:
-        data: DataFrame type data variable
-        
-        Returns:
-        DataFrame type prediction results
+        Generate predictions using the pre-trained model
+        """
+        pass
+
+    def predict_proba(self, data):
+        """
+        Predict probability function that returns the probability distribution for each class.
         """
         pass

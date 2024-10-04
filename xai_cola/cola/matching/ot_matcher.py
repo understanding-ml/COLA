@@ -17,7 +17,8 @@ class CounterfactualOptimalTransportPolicy(BaseMatcher):
         self.ot_cost = ot.dist(self.x_factual, self.x_counterfactual, p=2)
         self.probs_matrix = 0
 
-    # compute the prob_matrix of factual and counterfactual
+    
+    """Compute the prob_matrix of factual and counterfactual"""
     def compute_prob_matrix_of_factual_and_counterfactual(self):
         if self.reg <= 0:
             self.probs_matrix = ot.emd(
