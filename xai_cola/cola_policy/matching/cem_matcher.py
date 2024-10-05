@@ -1,7 +1,7 @@
 import ot
 import numpy as np
 import pandas as pd
-from cem import CEM
+# from cem import CEM
 from .base_matcher import BaseMatcher
 
 EPSILON = 1e-20

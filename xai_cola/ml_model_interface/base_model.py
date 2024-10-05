@@ -15,13 +15,13 @@ class BaseModel(ABC):
                 raise ValueError("Framework must be one of 'pytorch', 'sklearn', 'tensorflow1', 'tensorflow2'")
 
 
-    def predict(self, data):
+    def predict(self, x_factual):
         """
         Generate predictions using the pre-trained model
         """
         pass
 
-    def predict_proba(self, data):
+    def predict_proba(self, X):
         """
         Predict probability function that returns the probability distribution for each class.
         """

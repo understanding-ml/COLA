@@ -1,36 +1,8 @@
 import numpy as np
 import shap
-from xai_cola.ml_model_interface import Model
-
-from .base_attributor import Attributor
+from copy import deepcopy
 
 EPSILON = 1e-20
-# SHAP_SAMPLE_SIZE = 10000
-SHAP_SAMPLE_SIZE = "auto"
-
-
-class PSHAP(Attributor):
-    def __init__(self, ml_model: Model, x_factual: np, x_counterfactual: np, joint_prob: np):
-        super().__init__(ml_model, x_factual, x_counterfactual, joint_prob)
-        self.shape_sample_size = SHAP_SAMPLE_SIZE
-
-    def calculate_varphi(self):
-        shap_values = JointProbabilityExplainer(self.ml_model).shap_values(
-            self.x_factual,
-            self.x_counterfactual,
-            self.joint_prob,
-            shap_sample_size=self.shape_sample_size,
-        )
-        varphi = convert_matrix_to_policy(shap_values)
-        return varphi
-
-
-def convert_matrix_to_policy(matrix):
-    P = np.abs(matrix) / np.abs(matrix).sum()
-    P += EPSILON
-    P /= P.sum()
-    return P
-
 
 
 class WeightedExplainer:

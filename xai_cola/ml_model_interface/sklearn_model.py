@@ -37,13 +37,18 @@ class SklearnModel(BaseModel):
                     to a class.
         """
         # if X is DataFrame，transfer to np.array
-        if isinstance(X, pd.DataFrame):
-            X = X.values
-        # get the probability of each class for each sample
-        probabilities = self.model.predict_proba(X)
+        # if isinstance(X, pd.DataFrame):
+        #     X = X.values
+        # # get the probability of each class for each sample
+        # probabilities = self.model.predict_proba(X)
 
-        # check if it is a 1D array (usually occurs in binary classification, only return the probability of the positive class)        
-        if probabilities.ndim == 1:
-            # expand to a 2D array, column 0 is the probability of class 0, column 1 is the probability of class 1
-            probabilities = np.vstack([1 - probabilities, probabilities]).T
-        return probabilities
+        # # check if it is a 1D array (usually occurs in binary classification, only return the probability of the positive class)        
+        # if probabilities.ndim == 1:
+        #     # expand to a 2D array, column 0 is the probability of class 0, column 1 is the probability of class 1
+        #     probabilities = np.vstack([1 - probabilities, probabilities]).T
+        # return probabilities
+
+        """
+        classwrapper.py use this return (But I dont know why)
+        """
+        return self.model.predict_proba(X)[:, 1]
