@@ -152,10 +152,25 @@ class COLA:
         self.factual_dataframe = self.factual_dataframe.astype(object)
         self.ace_dataframe = self.ace_dataframe.astype(object)
         self.corresponding_counterfactual_dataframe = self.corresponding_counterfactual_dataframe.astype(object)
-    
-        ace_style = self.ace_dataframe.style.apply(lambda x: highlight_differences(x, self.factual_dataframe, self.ace_dataframe, self.data.get_target_name()), axis=None)
-        ace_style_1 = copy.deepcopy(ace_style.set_properties(**{'text-align': 'center'}))
+        
+        # preparation for the highlight
+        cce_df = self._change_df_value(self.factual_dataframe, self.corresponding_counterfactual_dataframe)
+        ace_df = self._change_df_value(self.factual_dataframe, self.ace_dataframe)
 
-        cce_style = self.corresponding_counterfactual_dataframe.style.apply(lambda x: highlight_differences(x, self.factual_dataframe, self.corresponding_counterfactual_dataframe, self.data.get_target_name()), axis=None)
-        cce_style_1 = copy.deepcopy(cce_style.set_properties(**{'text-align': 'center'}))
-        return self.factual_dataframe, cce_style_1, ace_style_1
+        cce_style = cce_df.style.apply(lambda x: highlight_differences(x, self.factual_dataframe, cce_df, self.data.get_target_name()), axis=None)
+        cce_style = cce_style.set_properties(**{'text-align': 'center'})
+
+        ace_style = ace_df.style.apply(lambda x: highlight_differences(x, self.factual_dataframe, ace_df, self.data.get_target_name()), axis=None)
+        ace_style = ace_style.set_properties(**{'text-align': 'center'})
+
+
+        return self.factual_dataframe, cce_style, ace_style
+    
+    def _change_df_value(self, factual, ce):
+        for row in range(ce.shape[0]):
+            for col in range(ce.shape[1]):
+                val_factual = factual.iat[row, col]
+                val_ce = ce.iat[row, col]
+                if val_factual != val_ce:
+                    ce.iat[row, col] = f'{val_factual} -> {val_ce}'
+        return ce

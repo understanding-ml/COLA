@@ -20,7 +20,7 @@ def highlight_differences(data, df_a, df_b, target_name):
                     # For other columns, set a yellow background and black border
                     df_style.iat[row, col] = 'background-color: yellow; border: 1px solid black'
                 
-                # Modify the contents of df_b to display 'val_a -> val_b'
-                df_b.iat[row, col] = f'{val_a} -> {val_b}'
+                # # Modify the contents of df_b to display 'val_a -> val_b'
+                # df_b.iat[row, col] = f'{val_a} -> {val_b}'
     
     return df_style
