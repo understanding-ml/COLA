@@ -49,6 +49,7 @@ class DiCE(CounterFactualExplainer):
             data:BaseData=None,
             factual_class:int=1,
             total_cfs:int=1,
+            features_to_keep: list = None  # Add this parameter to specify columns not to modify
             ) -> np.ndarray:
 
         """
@@ -58,7 +59,7 @@ class DiCE(CounterFactualExplainer):
         param data: BaseData type, the factual data(don't need target column)
         param factual_class: The class of the factual data(Normally, we set the factual_class as the value 1 as the prediction of factual data is 1. And we hope the prediction of counterfactual data is 0)
         param total_CFs: Total number of counterfactuals required(of each query_instance).
-
+        param features_to_keep: List of features to keep unchanged in the counterfactuals
         params: parameters for specific counterfactual algorithm
 
         return:
@@ -74,10 +75,17 @@ class DiCE(CounterFactualExplainer):
         x_chosen = self.x_factual_pandas
         x_with_targetcolumn = x_chosen.copy() 
         x_with_targetcolumn[self.target_name] = self.ml_model.predict(x_chosen.values)
-
+ 
         # Prepare for DiCE
         dice_model = dice_ml.Model(model=self.ml_model, backend=self.ml_model.backend) #'sklearn'
         dice_features = x_chosen.columns.to_list() 
+
+        # Remove the features you want to keep unchanged
+        if features_to_keep is not None:
+            features_to_vary = [feature for feature in dice_features if feature not in features_to_keep]
+        else:
+            features_to_vary = dice_features  # Default: allow all features to vary if none are specified
+
         dice_data = dice_ml.Data(
             dataframe = x_with_targetcolumn,                 # factual, pd.DataFrame, with target column
             continuous_features = dice_features, 
@@ -86,7 +94,7 @@ class DiCE(CounterFactualExplainer):
         dice_explainer = dice_ml.Dice(dice_data, dice_model)
         dice_results = dice_explainer.generate_counterfactuals(
             query_instances = x_chosen,                     # factual, pd.DataFrame, without target column
-            features_to_vary = dice_features,
+            features_to_vary = features_to_vary,
             desired_class=1 - factual_class,               # desired class is 0
             total_CFs=total_cfs,
         )

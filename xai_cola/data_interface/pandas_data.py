@@ -20,11 +20,19 @@ class PandasData(BaseData):
         return self.data[self.target_name]
     
     def get_target_name(self):
+        """
+        Return the name of the target column
+        """
         return self.target_name
     
     def get_x_labels(self):
-
+        """
+        Return the labels of the feature columns
+        """
         return self.data.columns
     
-    def get_numpy(self) -> np.array:
+    def get_numpy(self):
+        """
+        Return the numpy array
+        """
         return self.data.values

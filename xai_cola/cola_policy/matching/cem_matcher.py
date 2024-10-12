@@ -1,3 +1,8 @@
+"""
+===========================================================================================================
+Due to the fact that the CEM class has been removed from cem package, the cem_matcher can't work right now.
+===========================================================================================================
+"""
 import ot
 import numpy as np
 import pandas as pd

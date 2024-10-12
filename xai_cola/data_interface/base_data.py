@@ -13,25 +13,39 @@ class BaseData(ABC):
         self.target_name = target_name
 
     def get_x(self):
-        """ Get the Dataframe type input data (without target column)        """
+        """ 
+        Get the Dataframe type input data (without target column)        
+        """
         pass
 
 
     def get_y(self):
-        pass
+        """
+        Return the data of the target column
+        """
+        return self.data[self.target_name]
 
     
     def get_target_name(self):
-        pass
+        """
+        Return the name of the target column
+        """
+        return self.target_name
 
     def get_x_labels(self):
-        """ Get the columns of the input data (without target column)       """
+        """ 
+        Get the columns of the input data (without target column)       
+        """
         pass
 
     def get_dataframe(self) -> pd.DataFrame:
-        """ Get the Dataframe type input data        """
+        """ 
+        Get the Dataframe type input data        
+        """
         pass
 
     def get_numpy(self) -> np.array:
-        """ Get the numpy type input data        """
+        """ 
+        Get the numpy type input data        
+        """
         pass
