@@ -129,7 +129,7 @@ Do the following steps to start refining:
             )
 
     # Choose the number of actions
-    factual, ce, ace = refiner.get_refined_counterfactual(limited_actions=7)
+    factual, ce, ace = refiner.get_refined_counterfactual(limited_actions=10)
 
 **Part5: Visualize results**
 
