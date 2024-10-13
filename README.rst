@@ -1,3 +1,9 @@
+|MITlicense|
+
+.. |MITlicense| image:: https://img.shields.io/badge/License-MIT-blue.svg
+.. _MITlicense: https://img.shields.io/badge/License-MIT-blue.svg
+
+
 Counterfactual explanations with Limited Actions (COLA)
 ======================================================================
   
