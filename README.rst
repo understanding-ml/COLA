@@ -1,7 +1,10 @@
-|MITlicense|
+|arXiv| |MITlicense|
+
+.. |arXiv| image:: https://img.shields.io/badge/arXiv-2410.05419-B31B1B.svg
+.. _arXiv: https://arxiv.org/pdf/2410.05419
 
 .. |MITlicense| image:: https://img.shields.io/badge/License-MIT-blue.svg
-.. _MITlicense: https://img.shields.io/badge/License-MIT-blue.svg
+.. _MITlicense: https://opensource.org/licenses/MIT
 
 
 Counterfactual explanations with Limited Actions (COLA)
