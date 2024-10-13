@@ -34,9 +34,9 @@ Do the following steps to start refining:
 5.Visualize results
 
 Part1: Initilize the data interface
+(1)COLA can accept two kinds of data: PandasData and NumpyData.
 
--COLA can accept two kinds of data: PandasData and NumpyData.
--If you don't have your personal dataset, you can use the built-in test_dataset.
+(2)If you don't have your personal dataset, you can use the built-in test_dataset.
 
 .. code:: python
 
@@ -64,9 +64,9 @@ Part1: Initilize the data interface
 
 
 Part2: Initilize the model interface
+(1)COLA can accept two kinds of model: sklearn model and pytorch model.
 
--COLA can accept two kinds of model: sklearn model and pytorch model.
--For the GermanCredit dataset, we provide a pre-trained model(lgbm_GermanCredit.pkl).
+(2)For the GermanCredit dataset, we provide a pre-trained model(lgbm_GermanCredit.pkl).
 
 .. code:: python
 
@@ -94,9 +94,9 @@ Part3: Generate counterfactual explanations
                                                              features_to_keep=['Age','Sex'])
 
 Part4: Refine the counterfactual explanations
+(1)You should Initialize the COLA, choose the policy and number of actions.
 
--You should Initialize the COLA, choose the policy and number of actions.
--If you use your own explainer, you just need to input the numpy array type x_factual and x_counterfactual.
+(2)If you use your own explainer, you just need to input the numpy array type x_factual and x_counterfactual.
 
 .. image:: docs/images/generated_ce.png
   :width: 400
@@ -123,9 +123,9 @@ Part4: Refine the counterfactual explanations
     factual, ce, ace = refiner.get_refined_counterfactual(limited_actions=7)
 
 Part5: Visualize results
+(1)For small number of instances, you can use the highlight_changes() to highlight get_dataframe
 
--For small number of instances, you can use the highlight_changes() to highlight get_dataframe
--For massive dataset, suggest to use the heatmap() to visualize the changes
+(2)For massive dataset, suggest to use the heatmap() to visualize the changes
 
 .. code:: python
     
@@ -138,13 +138,15 @@ Part5: Visualize results
     print("factual -> action-limited counterfactual")
     display(refine_ace)
 
-    # Heatmap
-    refiner.heatmap()
-
 .. image:: docs/images/highlight_changes.png
     :width: 400
     :alt: highlight_changes
 
+.. code:: python
+    
+    # Heatmap
+    refiner.heatmap()
+    
 .. image:: docs/images/heatmap_smalldata.png
     :width: 400
     :alt: heatmap
