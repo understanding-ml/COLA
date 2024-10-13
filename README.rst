@@ -33,10 +33,10 @@ Do the following steps to start refining:
 4.Refine the counterfactual explanations
 5.Visualize results
 
-Part1: Initilize the data interface
-(1)COLA can accept two kinds of data: PandasData and NumpyData.
+**Part1: Initilize the data interface**
 
-(2)If you don't have your personal dataset, you can use the built-in test_dataset.
+(1) COLA can accept two kinds of data: PandasData and NumpyData.  
+(2) If you don't have your personal dataset, you can use the built-in test_dataset.  
 
 .. code:: python
 
@@ -63,10 +63,10 @@ Part1: Initilize the data interface
     data = data_interface.PandasData(df_without_target, target_name='Risk')
 
 
-Part2: Initilize the model interface
-(1)COLA can accept two kinds of model: sklearn model and pytorch model.
+**Part2: Initilize the model interface**
 
-(2)For the GermanCredit dataset, we provide a pre-trained model(lgbm_GermanCredit.pkl).
+(1) COLA can accept two kinds of model: sklearn model and pytorch model.  
+(2) For the GermanCredit dataset, we provide a pre-trained model(lgbm_GermanCredit.pkl).  
 
 .. code:: python
 
@@ -77,10 +77,10 @@ Part2: Initilize the model interface
     # Initialize the model interface
     ml_model = ml_model_interface.Model(model=lgbmcClassifier, backend="sklearn")
 
-Part3: Generate counterfactual explanations
+**Part3: Generate counterfactual explanations**
 
--You can choose DiCE, DisCount, Alibi_CI as the counterfactual explainer.
--Or You can use your own explainer
+(1) You can choose DiCE, DisCount, Alibi_CI as the counterfactual explainer.  
+(2) Or You can use your own explainer.
 
 .. code:: python
 
@@ -93,13 +93,13 @@ Part3: Generate counterfactual explanations
                                                              total_cfs=1,
                                                              features_to_keep=['Age','Sex'])
 
-Part4: Refine the counterfactual explanations
-(1)You should Initialize the COLA, choose the policy and number of actions.
+**Part4: Refine the counterfactual explanations**
 
-(2)If you use your own explainer, you just need to input the numpy array type x_factual and x_counterfactual.
+(1) You should Initialize the COLA, choose the policy and number of actions.  
+(2) If you use your own explainer, you just need to input the numpy array type x_factual and x_counterfactual.
 
 .. image:: docs/images/generated_ce.png
-  :width: 400
+  :width: 300
   :alt: generated counterfactual explanations
 
 .. code:: python
@@ -122,10 +122,10 @@ Part4: Refine the counterfactual explanations
     # Choose the number of actions
     factual, ce, ace = refiner.get_refined_counterfactual(limited_actions=7)
 
-Part5: Visualize results
-(1)For small number of instances, you can use the highlight_changes() to highlight get_dataframe
+**Part5: Visualize results**
 
-(2)For massive dataset, suggest to use the heatmap() to visualize the changes
+(1) For small number of instances, you can use the highlight_changes() to highlight get_dataframe.  
+(2) For massive dataset, suggest to use the heatmap() to visualize the changes.  
 
 .. code:: python
     
@@ -139,7 +139,7 @@ Part5: Visualize results
     display(refine_ace)
 
 .. image:: docs/images/highlight_changes.png
-    :width: 400
+    :width: 300
     :alt: highlight_changes
 
 .. code:: python
@@ -148,17 +148,17 @@ Part5: Visualize results
     refiner.heatmap()
     
 .. image:: docs/images/heatmap_smalldata.png
-    :width: 400
+    :width: 300
     :alt: heatmap
 
 If dataset has large number of instances, or too many features, it's nice to show the heatmap. For example, the heatmap of the HotelBooking dataset is shown below.
 
 .. image:: docs/images/hm_ce.png
-    :width: 400
+    :width: 300
     :alt: heatmap_hotelbooking_ce
 
 .. image:: docs/images/hm_ace.png
-    :width: 400
+    :width: 300
     :alt: heatmap_hotelbooking_ace
 
 Future work
