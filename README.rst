@@ -3,15 +3,16 @@ Counterfactual explanations with Limited Actions (COLA)
   
 Explainable Artificial Intelligence (XAI) is essential for making artificial intelligence systems transparent and trustworthy (`Arrieta et al., 2020 <https://www.sciencedirect.com/science/article/pii/S1566253519308103?casa_token=tMxtv_87MG0AAAAA:_f_pbOfKiVGSTKWC9mN6dxKyXYuO6FiE4-OWoUubefLcRe6JDOILQlo0aqPtyuEU5j9hoPzv>`_). 
 Within this area, feature attributions (FA) methods, such as Shapley values (`Sundararajan & Najmi, 2020 <https://proceedings.mlr.press/v119/sundararajan20b.html>`_; `Lundberg & Lee, 2017 <https://www.planchet.net/EXT/ISFA/1226.nsf/769998e0a65ea348c1257052003eb94f/02b26cfa6ecc8cd3c12583d9006de8c2/$FILE/7062-a-unified-approach-to-interpreting-model-predictions.pdf>`_), determine how much each input feature contributes to a machine learning (ML) model's output. 
-This helps simplify complex models by highlighting the most influential features. 
+This helps simplify complex models by highlighting the most influential features.
+
 Another technique counterfactual explanations (CE) (`Wachter et al., 2017 <https://heinonline.org/HOL/LandingPage?handle=hein.journals/hjlt31&div=29&id=&page=>`_; `Guidotti, 2022 <https://link.springer.com/article/10.1007/s10618-022-00831-6>`_) show how small changes in input features can lead to different outcomes. 
 While hundreds of CE algorithms have been proposed (`Guidotti, 2022 <https://link.springer.com/article/10.1007/s10618-022-00831-6>`_) to date, it is hardly practical to find one single CE algorithm that suits for all user cases, due to each of them is tailored particularly for their own different scenarios, goals, and tasks. 
 For instance, the objective in one CE algorithm can be defined as finding a single counterfactual instance for each factual instance sometimes, while at othertimes, it could be treating multiple instances as a group and seeking one or more/multiple counterfactual instances for each factual observation. 
-In some cases, the focus of a CE algorithm could be on theentire dataset, aiming to identify global CE that indicate the direction to move the factual instances to achieve the desired model output (`Rawal & Lakkaraju, 2020 <https://proceedings.neurips.cc/paper/2020/hash/8ee7730e97c67473a424ccfeff49ab20-Abstract.html>`_; `Ley et al., 2022 <arXiv preprint arXiv:2204.06917, 2022.>`_; `Carrizosa et al., 2024 <https://www.sciencedirect.com/science/article/pii/S037722172400002X>`_). 
+In some cases, the focus of a CE algorithm could be on theentire dataset, aiming to identify global CE that indicate the direction to move the factual instances to achieve the desired model output (`Rawal & Lakkaraju, 2020 <https://proceedings.neurips.cc/paper/2020/hash/8ee7730e97c67473a424ccfeff49ab20-Abstract.html>`_; `Ley et al., 2022 <https://arxiv.org/abs/2204.06917>`_; `Carrizosa et al., 2024 <https://www.sciencedirect.com/science/article/pii/S037722172400002X>`_). 
 Yet in other scenarios, the group of factual instances is viewed as a distribution, aiming to find a counterfactual distribution that remains similar in shape to the factual distribution (`You et al., 2024 <https://arxiv.org/pdf/2401.13112>`_), 
 and ensuring comparable costs. Besides, some CE algorithms assume differentiable models, whereas others are designed specifically for tree-based or ensemble models.
 
-What COLA can do!
+What is COLA?
 ----------------------------
 .. image:: docs/images/problem.png
   :width: 800
@@ -26,194 +27,121 @@ COLA is a python package that helps refine the results of generated counterfactu
 and built-in dataset for testing such as GermanCredit, HotelBooking etc.
 
 Do the following steps to start refining: 
-1.Initilize the data interface(use your own dataset/ provided dataset) 
-2.Initilize the model interface(use pre-trained model) 
-3.Generate counterfactual explanations(use built-in counterfactual algorithms/ pre-generated) 
-4.Refine the counterfactual explanations(choose policy & number of actions)
-5.Visualize the refined counterfactual explanations
+1.Initilize the data interface
+2.Initilize the model interface
+3.Generate counterfactual explanations
+4.Refine the counterfactual explanations
+5.Visualize results
 
-.. .. code:: python
+Part1: Initilize the data interface
+-COLA can accept two kinds of data: PandasData and NumpyData.
+-If you don't have your personal dataset, you can use the built-in test_dataset.
+.. code:: python
+    from xai_cola import data_interface 
+    from xai_cola import ml_model_interface
+    from counterfactual_explainer import DiCE
+    from xai_cola.counterfactual_limited_actions import COLA
 
-..     import dice_ml
-..     from dice_ml.utils import helpers # helper functions
-..     from sklearn.model_selection import train_test_split
+    # Use the built-in test_dataset
+    from test_dataset.german_credit import GermanCreditDataset
+    dataset = GermanCreditDataset()
+    df = dataset.get_dataframe()
 
-..     dataset = helpers.load_adult_income_dataset()
-..     target = dataset["income"] # outcome variable 
-..     train_dataset, test_dataset, _, _ = train_test_split(dataset,
-..                                                          target,
-..                                                          test_size=0.2,
-..                                                          random_state=0,
-..                                                          stratify=target)
-..     # Dataset for training an ML model
-..     d = dice_ml.Data(dataframe=train_dataset,
-..                      continuous_features=['age', 'hours_per_week'],
-..                      outcome_name='income')
-    
-..     # Pre-trained ML model
-..     m = dice_ml.Model(model_path=dice_ml.utils.helpers.get_adult_income_modelpath(),
-..                       backend='TF2', func="ohe-min-max")
-..     # DiCE explanation instance
-..     exp = dice_ml.Dice(d,m)
+    # pick 8 samples with Risk = 1, because we want to generate counterfactuals make Risk from 1 to 0
+    df_Risk_1 = df[df['Risk'] == 1]
+    df_Risk_1 = df_Risk_1.sample(8)
 
-.. For any given input, we can now generate counterfactual explanations. For
-.. example, the following input leads to class 0 (low income) and we would like to know what minimal changes would lead to a prediction of 1 (high income).
+    # drop the target column.
+    # Normally, the input data doesn't contain the target column
+    df_without_target = df_Risk_1.drop(columns=['Risk']).copy()
+    feature_names = df_without_target.columns
 
-.. .. code:: python
-    
-..     # Generate counterfactual examples
-..     query_instance = test_dataset.drop(columns="income")[0:1]
-..     dice_exp = exp.generate_counterfactuals(query_instance, total_CFs=4, desired_class="opposite")
-..     # Visualize counterfactual explanation
-..     dice_exp.visualize_as_dataframe()
+    # Initialize the data interface
+    data = data_interface.PandasData(df_without_target, target_name='Risk')
 
+Part2: Initilize the model interface
+-COLA can accept two kinds of model: sklearn model and pytorch model.
+-For the GermanCredit dataset, we provide a pre-trained model(lgbm_GermanCredit.pkl).
+.. code:: python
+    # download the pre-trained model    
+    import joblib
+    lgbmcClassifier = joblib.load('lgbm_GremanCredit.pkl')
 
+    # Initialize the model interface
+    ml_model = ml_model_interface.Model(model=lgbmcClassifier, backend="sklearn")
 
-.. You can save the generated counterfactual examples in the following way.
+Part3: Generate counterfactual explanations
+-You can choose DiCE, DisCount, Alibi_CI as the counterfactual explainer.
+-Or You can use your own explainer
+.. code:: python
+    # choose the explainer
+    explainer = DiCE(ml_model=ml_model)
 
-.. .. code:: python
+    # gerenate counterfactual explanations
+    factual, counterfactual = explainer.generate_counterfactuals(data=data,
+                                                             factual_class=1,
+                                                             total_cfs=1,
+                                                             features_to_keep=['Age','Sex'])
 
-..     # Save generated counterfactual examples to disk
-..     dice_exp.cf_examples_list[0].final_cfs_df.to_csv(path_or_buf='counterfactuals.csv', index=False)
+Part4: Refine the counterfactual explanations
+-You should Initialize the COLA, choose the policy and number of actions.
+-If you use your own explainer, you just need to input the numpy array type x_factual and x_counterfactual.
+.. image:: docs/images/generated_ce.png
+  :width: 400
+  :alt: generated counterfactual explanations
+.. code:: python
+    # Initialize the COLA
+    refiner = COLA(
+            data=data,
+            ml_model=ml_model,
+            x_factual=factual,
+            x_counterfactual=counterfactual,
+            )
 
+    # Choose the policy
+    refiner.set_policy(
+            matcher="ect", # We prefer "ect_matcher" with DiCE, you can also choose "ot_matcher" for group-based counterfactuals
+            attributor="pshap",
+            Avalues_method="max"
+            )
 
-.. For more details, check out the `docs/source/notebooks <https://github.com/interpretml/DiCE/tree/master/docs/source/notebooks>`_ folder. Here are some example notebooks:
+    # Choose the number of actions
+    factual, ce, ace = refiner.get_refined_counterfactual(limited_actions=7)
 
-.. * `Getting Started <https://github.com/interpretml/DiCE/blob/master/docs/source/notebooks/DiCE_getting_started.ipynb>`_: Generate CF examples for a `sklearn`, `tensorflow` or `pytorch` binary classifier and compute feature importance scores.
-.. * `Explaining Multi-class Classifiers and Regressors
-..   <https://github.com/interpretml/DiCE/blob/master/docs/source/notebooks/DiCE_multiclass_classification_and_regression.ipynb>`_: Generate CF explanations for a multi-class classifier or regressor.
-.. * `Local and Global Feature Importance <https://github.com/interpretml/DiCE/blob/master/docs/source/notebooks/DiCE_feature_importances.ipynb>`_: Estimate local and global feature importance scores using generated counterfactuals.
-.. * `Providing Constraints on Counterfactual Generation
-..   <https://github.com/interpretml/DiCE/blob/master/docs/source/notebooks/DiCE_model_agnostic_CFs.ipynb>`_: Specifying which features to vary and their permissible ranges for valid counterfactual examples.
+Part5: Visualize results
+-For small number of instances, you can use the highlight_changes() to highlight get_dataframe
+-For massive dataset, suggest to use the heatmap() to visualize the changes
+.. code:: python
+    # Highlight the changes
+    rrefine_factual, refine_ce, refine_ace = refiner.highlight_changes()
+    print("factual")
+    display(factual)
+    print("factaul -> corresponding counterfactual")
+    display(refine_ce)
+    print("factual -> action-limited counterfactual")
+    display(refine_ace)
 
-.. Supported methods for generating counterfactuals
-.. ------------------------------------------------
-.. DiCE can generate counterfactual examples using the following methods.
+    # Heatmap
+    refiner.heatmap()
+.. image:: docs/images/highlight_changes.png
+    :width: 400
+    :alt: highlight_changes
+.. image:: docs/images/heatmap_smalldata.png
+    :width: 400
+    :alt: heatmap
 
-.. **Model-agnostic methods**
-
-.. * Randomized sampling 
-.. * KD-Tree (for counterfactuals within the training data)
-.. * Genetic algorithm 
-
-.. See `model-agnostic notebook
-.. <https://github.com/interpretml/DiCE/blob/master/docs/source/notebooks/DiCE_model_agnostic_CFs.ipynb>`_ for code examples on using these methods.
-
-.. **Gradient-based methods**
-
-.. * An explicit loss-based method described in `Mothilal et al. (2020) <https://arxiv.org/abs/1905.07697>`_ (Default for deep learning models).
-.. * A Variational AutoEncoder (VAE)-based method described in `Mahajan et al. (2019) <https://arxiv.org/abs/1912.03277>`_ (see the BaseVAE `notebook <https://github.com/interpretml/DiCE/blob/master/docs/notebooks/DiCE_getting_started_feasible.ipynb>`_).
-
-.. The last two methods require a differentiable model, such as a neural network. If you are interested in a specific method, do raise an issue `here <https://github.com/interpretml/DiCE/issues>`_.
-
-.. Supported use-cases
-.. -------------------
-.. **Data**
-
-.. DiCE does not need access to the full dataset. It only requires metadata properties for each feature (min, max for continuous features and levels for categorical features). Thus, for sensitive data, the dataset can be provided as:
-
-.. .. code:: python
-
-..     d = data.Data(features={
-..                        'age':[17, 90],
-..                        'workclass': ['Government', 'Other/Unknown', 'Private', 'Self-Employed'],
-..                        'education': ['Assoc', 'Bachelors', 'Doctorate', 'HS-grad', 'Masters', 'Prof-school', 'School', 'Some-college'],
-..                        'marital_status': ['Divorced', 'Married', 'Separated', 'Single', 'Widowed'],
-..                        'occupation':['Blue-Collar', 'Other/Unknown', 'Professional', 'Sales', 'Service', 'White-Collar'],
-..                        'race': ['Other', 'White'],
-..                        'gender':['Female', 'Male'],
-..                        'hours_per_week': [1, 99]},
-..              outcome_name='income')
-
-.. **Model**
-
-.. We support pre-trained models as well as training a model. Here's a simple example using Tensorflow. 
-
-.. .. code:: python
-
-..     sess = tf.InteractiveSession()
-..     # Generating train and test data
-..     train, _ = d.split_data(d.normalize_data(d.one_hot_encoded_data))
-..     X_train = train.loc[:, train.columns != 'income']
-..     y_train = train.loc[:, train.columns == 'income']
-..     # Fitting a dense neural network model
-..     ann_model = keras.Sequential()
-..     ann_model.add(keras.layers.Dense(20, input_shape=(X_train.shape[1],), kernel_regularizer=keras.regularizers.l1(0.001), activation=tf.nn.relu))
-..     ann_model.add(keras.layers.Dense(1, activation=tf.nn.sigmoid))
-..     ann_model.compile(loss='binary_crossentropy', optimizer=tf.keras.optimizers.Adam(0.01), metrics=['accuracy'])
-..     ann_model.fit(X_train, y_train, validation_split=0.20, epochs=100, verbose=0, class_weight={0:1,1:2})
-
-..     # Generate the DiCE model for explanation
-..     m = model.Model(model=ann_model)
-
-.. Check out the `Getting Started <https://github.com/interpretml/DiCE/blob/master/docs/source/notebooks/DiCE_getting_started.ipynb>`_ notebook to see code examples on using DiCE with sklearn and PyTorch models.
-
-.. **Explanations**
-
-.. We visualize explanations through a table highlighting the change in features. We plan to support an English language explanation too!
-
-.. Feasibility of counterfactual explanations
-.. -------------------------------------------
-.. We acknowledge that not all counterfactual explanations may be feasible for a
-.. user. In general, counterfactuals closer to an individual's profile will be
-.. more feasible. Diversity is also important to help an individual choose between
-.. multiple possible options.
-
-.. DiCE provides tunable parameters for diversity and proximity to generate
-.. different kinds of explanations.
-
-.. .. code:: python
-
-..     dice_exp = exp.generate_counterfactuals(query_instance,
-..                     total_CFs=4, desired_class="opposite",
-..                     proximity_weight=1.5, diversity_weight=1.0)
-
-.. Additionally, it may be the case that some features are harder to change than
-.. others (e.g., education level is harder to change than working hours per week). DiCE allows input of relative difficulty in changing a feature through specifying *feature weights*. A higher feature weight means that the feature is harder to change than others. For instance, one way is to use the mean absolute deviation from the median as a measure of relative difficulty of changing a continuous feature. By default, DiCE computes this internally and divides the distance between continuous features by the MAD of the feature's values in the training set. We can also assign different values through the *feature_weights* parameter. 
-
-.. .. code:: python
-
-..     # assigning new weights
-..     feature_weights = {'age': 10, 'hours_per_week': 5}
-..     # Now generating explanations using the new feature weights
-..     dice_exp = exp.generate_counterfactuals(query_instance,
-..                     total_CFs=4, desired_class="opposite",
-..                     feature_weights=feature_weights)
-
-.. Finally, some features are impossible to change such as one's age or race. Therefore, DiCE also allows inputting a
-.. list of features to vary.
-
-.. .. code:: python
-
-..     dice_exp = exp.generate_counterfactuals(query_instance,
-..                     total_CFs=4, desired_class="opposite",
-..                     features_to_vary=['age','workclass','education','occupation','hours_per_week'])
-
-.. It also supports simple constraints on
-.. features that reflect practical constraints (e.g., working hours per week
-.. should be between 10 and 50 using the ``permitted_range`` parameter).
-
-.. For more details, check out `this <https://github.com/interpretml/DiCE/blob/master/docs/source/notebooks/DiCE_model_agnostic_CFs.ipynb>`_ notebook.
-
-.. The promise of counterfactual explanations
-.. -------------------------------------------
-.. Being truthful to the model, counterfactual explanations can be useful to all stakeholders for a decision made by a machine learning model that makes decisions.
-
-.. * **Decision subjects**: Counterfactual explanations can be used to explore actionable recourse for a person based on a decision received by a ML model. DiCE shows decision outcomes with *actionable* alternative profiles, to help people understand what they could have done to change their model outcome.
-
-.. * **ML model developers**: Counterfactual explanations are also useful for model developers to debug their model for potential problems. DiCE can be used to show CF explanations for a selection of inputs that can uncover if there are any problematic (in)dependences on some features (e.g., for 95% of inputs, changing features X and Y change the outcome, but not for the other 5%). We aim to support aggregate metrics to help developers debug ML models.
-
-.. * **Decision makers**: Counterfactual explanations may be useful to
-..   decision-makers such as doctors or judges who may use ML models to make decisions. For a particular individual, DiCE allows probing the ML model to see the possible changes that lead to a different ML outcome, thus enabling decision-makers to assess their trust in the prediction.
-
-.. * **Decision evaluators**: Finally, counterfactual explanations can be useful
-..   to decision evaluators who may be interested in fairness or other desirable
-..   properties of an ML model. We plan to add support for this in the future.
-
+If dataset has large number of instances, or too many features, it's nice to show the heatmap. For example, the heatmap of the HotelBooking dataset is shown below.
+.. image:: docs/images/hm_ce.png
+    :width: 400
+    :alt: heatmap_hotelbooking_ce
+.. image:: docs/images/hm_ace.png
+    :width: 400
+    :alt: heatmap_hotelbooking_ace
 
 Future work
 -------
 This work still needs to be supplemented and improved. Our future work plan is as follows:
+
 * Can be compatible with more counterfactual algorithms like DiCE and DisCount.
 * Explore more visualization (such as in feature attribution).
 * Explore more diverse refine methods (based on different user needs).
@@ -223,7 +151,7 @@ Citing
 -------
 The theoretical foundation of COLA is described in the following paper:
 
-Lei You, Yijun Bian, and Lele Cao (2020). `Refining Counterfactual Explanations With Joint-Distribution-Informed Shapley Towards Actionable Minimality <arXiv:2410.05419>`_.
+Lei You, Yijun Bian, and Lele Cao (2024). `Refining Counterfactual Explanations With Joint-Distribution-Informed Shapley Towards Actionable Minimality <https://arxiv.org/pdf/2410.05419>`_.
 
 Contributing
 ------------
