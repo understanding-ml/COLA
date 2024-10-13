@@ -36,6 +36,7 @@ Do the following steps to start refining:
 Part1: Initilize the data interface
 -COLA can accept two kinds of data: PandasData and NumpyData.
 -If you don't have your personal dataset, you can use the built-in test_dataset.
+
 .. code:: python
     from xai_cola import data_interface 
     from xai_cola import ml_model_interface
@@ -62,6 +63,7 @@ Part1: Initilize the data interface
 Part2: Initilize the model interface
 -COLA can accept two kinds of model: sklearn model and pytorch model.
 -For the GermanCredit dataset, we provide a pre-trained model(lgbm_GermanCredit.pkl).
+
 .. code:: python
     # download the pre-trained model    
     import joblib
@@ -73,6 +75,7 @@ Part2: Initilize the model interface
 Part3: Generate counterfactual explanations
 -You can choose DiCE, DisCount, Alibi_CI as the counterfactual explainer.
 -Or You can use your own explainer
+
 .. code:: python
     # choose the explainer
     explainer = DiCE(ml_model=ml_model)
@@ -86,9 +89,11 @@ Part3: Generate counterfactual explanations
 Part4: Refine the counterfactual explanations
 -You should Initialize the COLA, choose the policy and number of actions.
 -If you use your own explainer, you just need to input the numpy array type x_factual and x_counterfactual.
+
 .. image:: docs/images/generated_ce.png
   :width: 400
   :alt: generated counterfactual explanations
+
 .. code:: python
     # Initialize the COLA
     refiner = COLA(
@@ -111,6 +116,7 @@ Part4: Refine the counterfactual explanations
 Part5: Visualize results
 -For small number of instances, you can use the highlight_changes() to highlight get_dataframe
 -For massive dataset, suggest to use the heatmap() to visualize the changes
+
 .. code:: python
     # Highlight the changes
     rrefine_factual, refine_ce, refine_ace = refiner.highlight_changes()
@@ -123,17 +129,21 @@ Part5: Visualize results
 
     # Heatmap
     refiner.heatmap()
+
 .. image:: docs/images/highlight_changes.png
     :width: 400
     :alt: highlight_changes
+
 .. image:: docs/images/heatmap_smalldata.png
     :width: 400
     :alt: heatmap
 
 If dataset has large number of instances, or too many features, it's nice to show the heatmap. For example, the heatmap of the HotelBooking dataset is shown below.
+
 .. image:: docs/images/hm_ce.png
     :width: 400
     :alt: heatmap_hotelbooking_ce
+
 .. image:: docs/images/hm_ace.png
     :width: 400
     :alt: heatmap_hotelbooking_ace
