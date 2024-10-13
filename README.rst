@@ -1,4 +1,4 @@
-|arXiv|_ |MITlicense|
+|arXiv|_   |MITlicense|
 
 .. |arXiv| image:: https://img.shields.io/badge/arXiv-2410.05419-B31B1B.svg
 .. _arXiv: https://arxiv.org/pdf/2410.05419
