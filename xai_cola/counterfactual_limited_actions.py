@@ -76,10 +76,18 @@ class COLA:
         varphi = self._get_attributor()
         q = self._get_data_composer()
         self.limited_actions = limited_actions
-
-        # 1. Find the top 'action' highest probability values and their positions in the varphi matrix
-        flat_indices = np.argpartition(varphi.flatten(), -self.limited_actions)[-self.limited_actions:]
-        row_indices, col_indices = np.unravel_index(flat_indices, varphi.shape)
+        # # 1. Find the top 'action' highest probability values and their positions in the varphi matrix
+        # flat_indices = np.argpartition(varphi.flatten(), -self.limited_actions)[-self.limited_actions:]
+        # row_indices, col_indices = np.unravel_index(flat_indices, varphi.shape)
+        action_indice = np.random.choice(
+            a=varphi.size,
+            size=self.limited_actions,
+            p=varphi.flatten(),
+            replace=False,
+        )
+        action_indice = np.unique(action_indice)
+        # Convert flat indices back to 2D indices
+        row_indices, col_indices = np.unravel_index(action_indice, varphi.shape)
         
         # store the row and column indices
         self.row_indices = row_indices
