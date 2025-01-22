@@ -2,7 +2,7 @@ import string
 import numpy as np
 import pandas as pd
 import copy
-
+from IPython.display import clear_output
 from xai_cola.data_interface import BaseData
 from xai_cola.ml_model_interface import Model
 
@@ -76,10 +76,18 @@ class COLA:
         varphi = self._get_attributor()
         q = self._get_data_composer()
         self.limited_actions = limited_actions
-
-        # 1. Find the top 'action' highest probability values and their positions in the varphi matrix
-        flat_indices = np.argpartition(varphi.flatten(), -self.limited_actions)[-self.limited_actions:]
-        row_indices, col_indices = np.unravel_index(flat_indices, varphi.shape)
+        # # 1. Find the top 'action' highest probability values and their positions in the varphi matrix
+        # flat_indices = np.argpartition(varphi.flatten(), -self.limited_actions)[-self.limited_actions:]
+        # row_indices, col_indices = np.unravel_index(flat_indices, varphi.shape)
+        action_indice = np.random.choice(
+            a=varphi.size,
+            size=self.limited_actions,
+            p=varphi.flatten(),
+            replace=False,
+        )
+        action_indice = np.unique(action_indice)
+        # Convert flat indices back to 2D indices
+        row_indices, col_indices = np.unravel_index(action_indice, varphi.shape)
         
         # store the row and column indices
         self.row_indices = row_indices
@@ -206,3 +214,60 @@ class COLA:
                 if val_factual != val_ce:
                     ce.iat[row, col] = f'{val_factual} -> {val_ce}'
         return ce
+    
+    def query_minimum_actions(self):
+        self.varphi = self._get_attributor()
+        self.q = self._get_data_composer()
+        m, y_corresponding_counterfactual = self._find_changes_m_of_ce()
+        
+        low, high = 1, m
+        while low < high:
+            mid = (low + high) // 2
+            diff = self._compare_target_ce_to_ace(mid, y_corresponding_counterfactual, self.varphi, self.q)
+            if diff != 0:
+                while diff != 0:
+                    mid = mid + diff
+                    diff = self._compare_target_ce_to_ace(mid, y_corresponding_counterfactual, self.varphi, self.q)
+                break
+            else:
+                high = mid
+                    
+        clear_output(wait=True)
+        print(f"The minimum number of actions is {mid}")
+        return mid
+
+    def _compare_target_ce_to_ace(self, mid, y_corresponding_counterfactual, varphi, q):
+        self.limited_actions = mid
+
+        # 1. Find the top 'action' highest probability values and their positions in the varphi matrix
+        flat_indices = np.argpartition(varphi.flatten(), -self.limited_actions)[-self.limited_actions:]
+        row_indices, col_indices = np.unravel_index(flat_indices, varphi.shape)
+        
+        # # store the row and column indices
+        # self.row_indices = row_indices
+        # self.col_indices = col_indices
+
+        # 2. Find the values at these positions in q
+        q_values = q[row_indices, col_indices]
+        # 3. Replace the corresponding values in x_factual with the values found in q
+        x_action_constrained = self.x_factual.copy()
+        
+        # 4. get the action-constrained CE
+        for row_idx, col_idx, q_val in zip(row_indices, col_indices, q_values):
+            x_action_constrained[row_idx, col_idx] = q_val
+        # corresponding_counterfactual = q
+
+        # 5. get the prediction
+        # y_factual = self.ml_model.predict(self.x_factual)
+        y_counterfactual_limited_actions = self.ml_model.predict(x_action_constrained)
+        # y_corresponding_counterfactual = self.ml_model.predict(corresponding_counterfactual)
+        
+        result = np.sum(y_counterfactual_limited_actions != y_corresponding_counterfactual)
+        return result
+
+    def _find_changes_m_of_ce(self):
+        corresponding_counterfactual = self._get_data_composer()
+        y_corresponding_counterfactual = self.ml_model.predict(corresponding_counterfactual)
+        # Count the number of differing elements
+        m = np.sum(corresponding_counterfactual != self.x_factual)
+        return m, y_corresponding_counterfactual
