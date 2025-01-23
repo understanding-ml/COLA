@@ -5,18 +5,20 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 import torch
 
-TEST_SIZE = 0.3
+TEST_SIZE = 0.2
 
 
-class GermanCreditDataset:
+class HelocDataset:
 
-    def __init__(self):
-        self.data_path = "test_dataset/rawdata/"
-        self.name = "german_credit"
+    def __init__(self, dataset_ares):
+        self.data_path = "datasets/rawdata/"
+        self.name = "heloc"
         self.data_filename = f"{self.name}.csv"
-        self.target_name = "Risk"
+        self.target_name = "RiskPerformance"
 
-        self._load_data()
+        self.dataset_ares = dataset_ares
+        self.df = dataset_ares.data.copy()
+
         self._preprocessing()
 
     def get_dataframe(self):
@@ -60,31 +62,10 @@ class GermanCreditDataset:
         self.df = pd.read_csv(os.path.join(self.data_path, self.data_filename))
 
     def _preprocessing(self):
-        self.target = self.df[self.target_name].replace({"good": 0, "bad": 1})
-        self.df[self.target_name] = self.target
+        self.target = self.df[self.target_name]
 
-        self._label_encoding()
+        std = self.dataset_ares.data.std()
+        mean = self.dataset_ares.data.mean()
 
-    def _label_encoding(self):
-        # Initialize a label encoder
-        self.label_encoder = LabelEncoder()
-        self.label_mappings = {}
-
-        # Convert categorical columns to numerical representations using label encoding
-        for column in self.df.columns:
-            if column is not self.target_name and self.df[column].dtype == "object":
-                # Handle missing values by filling with a placeholder and then encoding
-                self.df[column] = self.df[column].fillna("Unknown")
-                self.df[column] = self.label_encoder.fit_transform(self.df[column])
-                self.label_mappings[column] = dict(
-                    zip(
-                        self.label_encoder.classes_,
-                        range(len(self.label_encoder.classes_)),
-                    )
-                )
-
-        # For columns with NaN values that are numerical, we will impute them with the median of the column
-        for column in self.df.columns:
-            if self.df[column].isna().any():
-                median_val = self.df[column].median()
-                self.df[column].fillna(median_val, inplace=True)
+        self.dataset_ares.data = (self.dataset_ares.data - mean) / std
+        self.dataset_ares.data[self.target_name] = self.target

@@ -8,45 +8,13 @@ import torch
 TEST_SIZE = 0.3
 
 
-class HotelBookingsDataset:
+class GermanCreditDataset:
 
     def __init__(self):
-        self.data_path = "test_dataset/rawdata/"
-        self.name = "hotel_bookings"
+        self.data_path = "datasets/rawdata/"
+        self.name = "german_credit"
         self.data_filename = f"{self.name}.csv"
-        self.target_name = "is_canceled"
-
-        self.features = [
-            "hotel",
-            "lead_time",
-            "arrival_date_year",
-            "arrival_date_month",
-            "arrival_date_week_number",
-            "arrival_date_day_of_month",
-            "stays_in_weekend_nights",
-            "stays_in_week_nights",
-            "adults",
-            "children",
-            "babies",
-            "meal",
-            "country",
-            "market_segment",
-            "distribution_channel",
-            "is_repeated_guest",
-            "previous_cancellations",
-            "previous_bookings_not_canceled",
-            "reserved_room_type",
-            "assigned_room_type",
-            "booking_changes",
-            "deposit_type",
-            "agent",
-            "company",
-            "days_in_waiting_list",
-            "customer_type",
-            "adr",
-            "required_car_parking_spaces",
-            "total_of_special_requests",
-        ]
+        self.target_name = "Risk"
 
         self._load_data()
         self._preprocessing()
@@ -92,8 +60,7 @@ class HotelBookingsDataset:
         self.df = pd.read_csv(os.path.join(self.data_path, self.data_filename))
 
     def _preprocessing(self):
-        self.target = self.df[self.target_name]
-        self.df = self.df[self.features]
+        self.target = self.df[self.target_name].replace({"good": 0, "bad": 1})
         self.df[self.target_name] = self.target
 
         self._label_encoding()
