@@ -8,15 +8,16 @@ import torch
 TEST_SIZE = 0.2
 
 
-class HelocDataset:
+class CompasDataset:
 
     def __init__(self, dataset_ares):
-        self.data_path = "test_dataset/rawdata/"
-        self.name = "heloc"
+        self.data_path = "datasets/rawdata/"
+        self.name = "compas"
         self.data_filename = f"{self.name}.csv"
-        self.target_name = "RiskPerformance"
+        self.target_name = "Status"
 
         self.dataset_ares = dataset_ares
+        self.dataset_ares.data = self.dataset_ares.data.astype("float64")
         self.df = dataset_ares.data.copy()
 
         self._preprocessing()
@@ -45,8 +46,9 @@ class HelocDataset:
         std = X_train.std()
         mean = X_train.mean()
 
-        X_train = (X_train - mean) / std
-        X_test = (X_test - mean) / std
+        for col in ["Priors_Count", "Time_Served"]:
+            X_train[col] = (X_train[col] - X_train[col].mean()) / X_train[col].std()
+            X_test[col] = (X_test[col] - X_test[col].mean()) / X_test[col].std()
 
         if return_tensor:
             return (
@@ -60,12 +62,7 @@ class HelocDataset:
 
     def _load_data(self):
         self.df = pd.read_csv(os.path.join(self.data_path, self.data_filename))
+        self.df = self.df.astype("float64")
 
     def _preprocessing(self):
         self.target = self.df[self.target_name]
-
-        std = self.dataset_ares.data.std()
-        mean = self.dataset_ares.data.mean()
-
-        self.dataset_ares.data = (self.dataset_ares.data - mean) / std
-        self.dataset_ares.data[self.target_name] = self.target
