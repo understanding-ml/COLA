@@ -189,5 +189,6 @@ Contributing
 ------------
 This project welcomes contributions and suggestions. If you have some questions about it, please feel free to reach out.
 
-* Lin Zhu (s232291@dtu.dk)
-* `Lei You <https://www.leiyou.me/>`_(leiyo@dtu.dk)
+* Lin Zhu (s232291@dtu.dk)  
+* `Lei You <https://www.leiyou.me/>`_ (leiyo@dtu.dk)
+
