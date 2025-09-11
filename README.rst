@@ -7,7 +7,7 @@
 .. _MITlicense: https://opensource.org/licenses/MIT
 
 
-COunterfactual explanations with Limited **`A`**ctions (COLA)
+COunterfactual explanations with Limited Actions (COLA)
 ======================================================================
   
 Explainable Artificial Intelligence (XAI) is essential for making artificial intelligence systems transparent and trustworthy (`Arrieta et al., 2020 <https://www.sciencedirect.com/science/article/pii/S1566253519308103?casa_token=tMxtv_87MG0AAAAA:_f_pbOfKiVGSTKWC9mN6dxKyXYuO6FiE4-OWoUubefLcRe6JDOILQlo0aqPtyuEU5j9hoPzv>`_). 
