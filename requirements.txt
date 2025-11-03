@@ -1,0 +1,35 @@
+# Core dependencies
+numpy>=1.26.4
+pandas==2.2.3
+scikit-learn==1.4.2
+scipy==1.13.0
+
+# Machine Learning models
+lightgbm==4.6.0
+joblib==1.4.0
+
+# Counterfactual explainers
+dice-ml==0.12
+alibi==0.9.6
+
+# Visualization
+matplotlib==3.10.1
+seaborn==0.13.2
+
+# Optional: SHAP for feature attributions
+shap==0.42.1
+
+# Optional: Optimal transport
+POT==0.9.3
+cem==1.1.0
+# Jupyter/IPython for interactive usage
+ipython==8.20.0
+jupyter>=1.0.0
+
+# Optional: PyTorch support
+torch==2.3.0; sys_platform != 'darwin' or platform_machine != 'arm64'
+torch==2.3.0; sys_platform == 'darwin' and platform_machine == 'arm64'
+
+# Development tools (not required for runtime)
+# See pyproject.toml for optional dev dependencies
+

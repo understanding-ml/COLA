@@ -1,0 +1,30 @@
+# Include the README file
+include README.rst
+include LICENSE
+include CHANGELOG.md
+
+# Include requirements file
+include requirements.txt
+
+# Include example notebooks
+recursive-include demo.ipynb
+recursive-include train_ml_model.ipynb
+
+# Include data files
+recursive-include datasets/rawdata *.csv
+recursive-include datasets/rawdata *.data
+
+# Include trained models
+include lgbm_GremanCredit.pkl
+
+# Include documentation
+recursive-include docs *.png
+recursive-include docs *.jpg
+
+# Exclude unnecessary files
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *.so
+global-exclude *.egg
+global-exclude .DS_Store
+
