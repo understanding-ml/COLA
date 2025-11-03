@@ -1,0 +1,46 @@
+# CircleCI configuration for CI/CD
+
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: circleci/python:3.10
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            pip install -e ".[dev]"
+      - run:
+          name: Run tests
+          command: |
+            make test
+      - run:
+          name: Run linter
+          command: |
+            make lint
+
+  build:
+    docker:
+      - image: circleci/python:3.10
+    steps:
+      - checkout
+      - run:
+          name: Install build tools
+          command: |
+            pip install --upgrade pip setuptools wheel twine
+      - run:
+          name: Build package
+          command: |
+            make build
+      - store_artifacts:
+          path: dist/
+
+workflows:
+  version: 2.1
+  test_and_build:
+    jobs:
+      - test
+      - build
+
