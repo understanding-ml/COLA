@@ -1,0 +1,67 @@
+==========================================
+COLA 类位置和使用指南
+==========================================
+
+📍 COLA 类位置
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+文件: xai_cola/cola.py
+
+导入方式:
+    from xai_cola import COLA
+
+
+🎯 COLA 类职责
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. 数据管理 (data)     - 通过 COLAData 管理 factual/counterfactual
+2. 模型管理 (model)    - 通过 Model 管理 ML 模型
+3. 策略控制 (refine)   - 设置匹配/归因策略，生成 action-limited counterfactual
+4. 可视化              - 提供高亮显示和热力图
+
+
+📝 快速使用
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 1. 初始化数据
+from xai_cola.data import COLAData
+data = COLAData(factual_data=df, label_column='Risk')
+data.add_counterfactuals(cf_df)
+
+# 2. 初始化模型
+from xai_cola.models import Model
+model = Model(ml_model, backend='sklearn')
+
+# 3. 使用 COLA
+from xai_cola import COLA
+cola = COLA(data=data, ml_model=model)
+
+# 4. 设置策略
+cola.set_policy(matcher='ot', attributor='pshap')
+
+# 5. 生成结果
+factual_df, cf_df, ace_df = cola.get_refined_counterfactual(limited_actions=3)
+
+# 6. 可视化
+_, style1, style2 = cola.highlight_changes()
+plot1, plot2 = cola.heatmap()
+
+
+📁 项目结构
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+xai_cola/
+├── cola.py              ⭐ COLA 主类（总控制器）
+├── data/
+│   └── coladata.py      COLAData 数据接口
+├── models/
+│   ├── sklearn.py       Scikit-learn 模型接口
+│   └── pytorch.py       PyTorch 模型接口
+└── policies/
+    ├── matching/        匹配策略
+    ├── feature_attributor/  特征归因
+    └── data_composer/   数据组合
+
+
+📚 更多文档
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- qa/COLA_CLASS_GUIDE.md             详细使用指南
+- examples/complete_usage_example.py  完整示例
+- examples/data_usage_example.py     COLAData 使用示例
+
