@@ -60,7 +60,7 @@ class GermanCreditDataset:
         self.df = pd.read_csv(os.path.join(self.data_path, self.data_filename))
 
     def _preprocessing(self):
-        self.target = self.df[self.target_name].replace({"good": 0, "bad": 1})
+        self.target = self.df[self.target_name].replace({"good": 0, "bad": 1}).infer_objects(copy=False)
         self.df[self.target_name] = self.target
 
         self._label_encoding()

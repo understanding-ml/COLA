@@ -239,7 +239,7 @@ class dataset_loader:
 
         url = self.datasets[self.name]
         file_name = "{}.data".format(self.name.split("_")[0])  # e.g. german.data
-        file_address = self.data_path + file_name
+        file_address = os.path.join(self.data_path, file_name)  # Cross-platform path joining
         if not path.exists(file_address):
             print(
                 "Downloading {} Dataset...".format(self.name.replace("_", " ").title())
@@ -269,7 +269,7 @@ class dataset_loader:
             # remove redundant education num column (education processed in one_hot)
             data = data.drop(4, axis=1)
             # remove rows with missing values: '?,'
-            data = data.replace("?,", np.nan)
+            data = data.replace("?,", np.nan).infer_objects(copy=False)
             data = data.dropna()
             data.columns = self.columns[self.name]
             for col in data.columns[:-1]:
@@ -281,7 +281,7 @@ class dataset_loader:
             # Prepocess Targets to <=50K = 0, >50K = 1
             data[data.columns[-1]] = data[data.columns[-1]].replace(
                 ["<=50K", ">50K"], [0, 1]
-            )
+            ).infer_objects(copy=False)
 
         elif self.name == "default_credit":
             data = pd.read_excel(file_address, header=1)
@@ -296,7 +296,7 @@ class dataset_loader:
             # Encode string labels
             data["RiskPerformance"] = data["RiskPerformance"].replace(
                 ["Bad", "Good"], [0, 1]
-            )
+            ).infer_objects(copy=False)
             # Move labels to final column (necessary for self.get_split)
             y = data.pop("RiskPerformance")
             data["RiskPerformance"] = y
@@ -306,7 +306,7 @@ class dataset_loader:
             nan_cols = data.isnull().any(axis=0)
             for col in data.columns:
                 if nan_cols[col]:
-                    data[col] = data[col].replace(np.nan, np.nanmedian(data[col]))
+                    data[col] = data[col].replace(np.nan, np.nanmedian(data[col])).infer_objects(copy=False)
 
         else:
             raise Exception("Dataset name does not match any known datasets.")
