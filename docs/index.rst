@@ -129,8 +129,8 @@ If you use COLA in your research, please cite:
 Contact
 -------
 
-- Lei You (leiyo@dtu.dk)
 - Lin Zhu (s232291@dtu.dk)
+- Lei You (leiyo@dtu.dk)
 
 License
 -------
