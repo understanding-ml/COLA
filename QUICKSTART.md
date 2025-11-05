@@ -124,16 +124,62 @@ factual, ce, ace = refiner.get_all_results(
 
 ### Step 6: Visualize Results
 
-```python
-# Highlight changes
-refine_factual, refine_ce, refine_ace = refiner.highlight_changes()
-display(refine_factual)
-display(refine_ce)
-display(refine_ace)
+COLA provides multiple visualization methods to help you understand the changes:
 
-# Or create heatmaps for larger datasets
-refiner.heatmap()
+#### Option 1: Highlight Changes (Best for Small Datasets)
+
+```python
+# Comparison format (shows "old -> new")
+factual_df, ce_style, ace_style = refiner.highlight_changes_comparison()
+display(factual_df)
+display(ce_style)   # Shows factual → full counterfactual
+display(ace_style)  # Shows factual → action-limited counterfactual
+
+# Or final format (shows only final values)
+factual_df, ce_style, ace_style = refiner.highlight_changes_final()
+display(ce_style)
+display(ace_style)
 ```
+
+#### Option 2: Binary Heatmap (Shows Changed/Unchanged)
+
+```python
+# Generate binary change heatmap
+plot1, plot2 = refiner.heatmap_binary(
+    save_path='./results',     # Optional: save to file
+    save_mode='combined',      # 'combined' or 'separate'
+    show_axis_labels=True      # Show column names and row indices
+)
+
+# Color scheme:
+# - Red: Changed features
+# - Light grey: Unchanged cells
+# - Dark blue (#000080): Target column (changed)
+```
+
+#### Option 3: Directional Heatmap (Shows Increase/Decrease)
+
+```python
+# Generate directional change heatmap
+plot1, plot2 = refiner.heatmap_direction(
+    save_path='./results',
+    save_mode='combined',
+    show_axis_labels=True
+)
+
+# Color scheme:
+# - Teal-green (#009E73): Increased values
+# - Red-orange (#D55E00): Decreased values
+# - Light grey: Unchanged cells
+# - Dark blue (#000080): Target column (changed)
+```
+
+**Visualization Tips:**
+- **Small datasets (< 20 instances)**: Use `highlight_changes_comparison()` or `highlight_changes_final()`
+- **Large datasets**: Use `heatmap_binary()` or `heatmap_direction()`
+- **Combined mode**: Creates two heatmaps stacked vertically (top: full counterfactual, bottom: action-limited counterfactual)
+- **Separate mode**: Saves two separate image files
+- **show_axis_labels=False**: Hides column names and row indices for cleaner visualization
 
 ## Available Explainers
 

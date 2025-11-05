@@ -49,12 +49,34 @@ class GermanCreditDataset:
         if return_tensor:
             return (
                 torch.FloatTensor(X_train.values),
-                torch.FloatTensor(X_test.values),
                 torch.FloatTensor(y_train.values).view(-1, 1),
+                torch.FloatTensor(X_test.values),
                 torch.FloatTensor(y_test.values).view(-1, 1),
             )
         else:
-            return (X_train, X_test, y_train, y_test)
+            return (X_train, y_train, X_test, y_test)
+
+    def get_original_train_test_split(self, random_state=None, return_tensor=False):
+
+        if random_state is not None:
+            np.random.seed(random_state)  # for reproducibility
+
+        df_X, df_y = self.get_Xy()
+
+        # Split the dataset into training and testing sets without standardization
+        X_train, X_test, y_train, y_test = train_test_split(
+            df_X, df_y, test_size=TEST_SIZE, random_state=random_state
+        )
+
+        if return_tensor:
+            return (
+                torch.FloatTensor(X_train.values),
+                torch.FloatTensor(y_train.values).view(-1, 1),
+                torch.FloatTensor(X_test.values),
+                torch.FloatTensor(y_test.values).view(-1, 1),
+            )
+        else:
+            return (X_train, y_train, X_test, y_test)
 
     def _load_data(self):
         self.df = pd.read_csv(os.path.join(self.data_path, self.data_filename))

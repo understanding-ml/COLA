@@ -27,15 +27,16 @@ This KNN algorithm can only search the counterfactual from all your input data! 
 """
 
 class KNN(CounterFactualExplainer):
-    def __init__(self, ml_model, data:COLAData=None):
-        super().__init__(ml_model, data)
+    def __init__(self, ml_model):
         """
         Initialize the KNN class
-        
+
         Parameters:
-        model: Pre-trained model
-        data: use our wrapperred-data (NumpyData, PandasData, etc.)
-        """ 
+        -----------
+        ml_model : Model
+            Pre-trained model wrapped in Model interface
+        """
+        super().__init__(ml_model) 
                         
     def generate_counterfactuals(
             self, 

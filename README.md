@@ -89,6 +89,21 @@ factual, ce, ace = refiner.get_all_results(
 
 # 5. Visualize results
 refine_factual, refine_ce, refine_ace = refiner.highlight_changes_final()
+
+# Binary heatmap (shows which features changed)
+refiner.heatmap_binary(save_path='./results', save_mode='combined')
+
+# Directional heatmap (shows if features increased or decreased)
+refiner.heatmap_direction(save_path='./results', save_mode='combined')
+
+# Stacked bar chart (shows percentage of modifications)
+refiner.stacked_bar_chart(save_path='./results')
+
+# Diversity analysis (shows minimal feature combinations)
+factual_df, diversity_styles = refiner.diversity()
+for i, style in enumerate(diversity_styles):
+    print(f"Instance {i+1} diversity:")
+    display(style)
 ```
 
 ## Features
@@ -97,6 +112,12 @@ refine_factual, refine_ce, refine_ace = refiner.highlight_changes_final()
 - **Flexible Matching**: Optimal Transport (OT), Exact Matching (ECT), Nearest Neighbor (NN), and Coarsened Exact Matching (CEM)
 - **Feature Attribution**: PSHAP for Shapley values with joint probability
 - **Feature Selection**: Control which features can be modified using `features_to_vary` parameter
+- **Rich Visualizations**:
+  - Highlighted DataFrames showing changes (comparison and final formats)
+  - Binary heatmaps showing which features changed
+  - Directional heatmaps showing increase/decrease patterns
+  - Stacked bar charts comparing modification efficiency
+  - Diversity analysis showing minimal feature combinations
 - **Data Interfaces**: Support for Pandas and NumPy data formats with automatic transformation support
 - **Model Support**: Works with scikit-learn and PyTorch models
 - **Built-in Datasets**: GermanCredit, Compas, HELOC, HotelBookings

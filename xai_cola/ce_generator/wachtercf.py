@@ -30,19 +30,17 @@ class WachterCF(CounterFactualExplainer):
     (with numerical gradients).
     """
 
-    def __init__(self, ml_model: Model, data: COLAData = None):
+    def __init__(self, ml_model: Model):
         """
         Initialize WachterCF explainer
-        
+
         Parameters:
         -----------
         ml_model : Model
             Pre-trained model wrapped in Model interface
             Supports 'pytorch' (with automatic gradients) and 'sklearn' (with numerical gradients)
-        data : COLAData, optional
-            Data wrapper containing factual data
         """
-        super().__init__(ml_model, data)
+        super().__init__(ml_model)
         
         # Check if model is PyTorch (for automatic gradients) or sklearn (for numerical gradients)
         self.use_automatic_grad = (self.ml_model.backend == 'pytorch')

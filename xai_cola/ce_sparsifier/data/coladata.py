@@ -3,83 +3,68 @@ COLA Data Module - 统一的数据接口
 
 支持 Pandas DataFrame 和 NumPy array 输入
 自动处理 target column 的管理
-支持数据预处理和逆变换
 """
 
 from typing import List, Optional, Union
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
 
 
 class COLAData:
     """
     COLA 统一数据接口
-    
+
     支持同时管理 factual 和 counterfactual 数据
     自动验证数据一致性
-    支持数据预处理（transform）和逆变换
-    
+
     Parameters:
     -----------
     factual_data : Union[pd.DataFrame, np.ndarray]
-        事实数据，必须包含 label column
+        事实数据（原始数据），必须包含 label column
         如果是 DataFrame：检查 label_column 是否存在
         如果是 numpy：需要提供所有列名（包含 label_column）
-    
+
     label_column : str
         标签列名称，默认应在最后一列
-    
+
     counterfactual_data : Optional[Union[pd.DataFrame, np.ndarray]]
         反事实数据（可选）
         如果是 DataFrame：检查与 factual 的列是否一致
         如果是 numpy：使用 factual 的列名
-        
+
     column_names : Optional[List[str]]
         仅当 factual_data 是 numpy 时必需
         提供所有列名（包括 label_column），顺序要匹配
-    
-    transform : Optional[str], default=None
-        数据预处理方法：
-        - "ohe-zscore": categorical 特征独热编码，numerical 特征标准化（z-score）
-        - "ohe-min-max": categorical 特征独热编码，numerical 特征归一化（min-max）
-        - None: 不进行预处理（数据已经是处理好的格式）
-    
+
     numerical_features : Optional[List[str]], default=None
-        数值特征列表。如果为 None，默认所有特征都是 numerical。
+        数值特征列表。用于记录哪些特征是连续数值型。
+        如果为 None，默认所有特征都是 numerical。
         其他特征自动推断为 categorical。
+        注意：这个参数仅用于记录特征类型信息，不进行数据转换。
     """
-    
+
     def __init__(
         self,
         factual_data: Union[pd.DataFrame, np.ndarray],
         label_column: str,
         counterfactual_data: Optional[Union[pd.DataFrame, np.ndarray]] = None,
         column_names: Optional[List[str]] = None,
-        transform: Optional[str] = None,
         numerical_features: Optional[List[str]] = None
     ):
         # 验证并设置 label column
         self.label_column = label_column
-        
+
         # 处理 factual data
         self.factual_df = self._process_input_data(
-            factual_data, 
+            factual_data,
             data_type='factual',
             column_names=column_names,
             reference_df=None
         )
-        
-        # 设置 transformation 参数
-        self.transform_method = transform
+
+        # 设置 numerical_features（仅用于记录特征类型信息）
         self.numerical_features = numerical_features if numerical_features is not None else []
-        
-        # 初始化 transformer（如果指定了 transform）
-        self._transformer = None
-        if self.transform_method is not None:
-            self._transformer = self._init_transformer()
-        
+
         # 处理 counterfactual data（如果提供）
         self.counterfactual_df = None
         if counterfactual_data is not None:
@@ -168,150 +153,6 @@ class COLAData:
                 f"Unsupported data type: {type(data)}. "
                 f"Supported types: pd.DataFrame, np.ndarray"
             )
-    
-    def _init_transformer(self):
-        """
-        初始化数据转换器
-        
-        Returns:
-        --------
-        ColumnTransformer
-            配置好的数据转换器
-        """
-        if self.transform_method is None:
-            return None
-        
-        # 获取特征列
-        feature_columns = self.get_feature_columns()
-        
-        # 推断 categorical features（所有非 numerical 的特征）
-        categorical_features = [col for col in feature_columns if col not in self.numerical_features]
-        numerical_features = [col for col in feature_columns if col in self.numerical_features]
-        
-        transformers = []
-        
-        # 添加 categorical 特征处理器（OneHotEncoder）
-        if categorical_features:
-            transformers.append(
-                ('cat', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'), 
-                 categorical_features)
-            )
-        
-        # 添加 numerical 特征处理器
-        if numerical_features:
-            if self.transform_method == 'ohe-zscore':
-                transformers.append(
-                    ('num', StandardScaler(), numerical_features)
-                )
-            elif self.transform_method == 'ohe-min-max':
-                transformers.append(
-                    ('num', MinMaxScaler(), numerical_features)
-                )
-        
-        if not transformers:
-            return None
-        
-        transformer = ColumnTransformer(
-            transformers=transformers,
-            remainder='passthrough',
-            verbose_feature_names_out=False
-        )
-        
-        # Fit transformer on factual data
-        factual_features = self.get_factual_features()
-        transformer.fit(factual_features)
-        
-        return transformer
-    
-    def _transform(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        对数据进行转换
-        
-        Parameters:
-        -----------
-        data : pd.DataFrame
-            输入数据（只包含特征列，不含 target）
-        
-        Returns:
-        --------
-        pd.DataFrame
-            转换后的数据
-        """
-        if self._transformer is None:
-            return data.copy()
-        
-        # 转换数据
-        transformed_array = self._transformer.transform(data)
-        
-        # 获取转换后的列名
-        try:
-            transformed_columns = self._transformer.get_feature_names_out()
-        except AttributeError:
-            # 对于老版本的 sklearn，使用不同的方法
-            transformed_columns = self._transformer.get_feature_names(data.columns)
-        
-        # 创建 DataFrame
-        transformed_df = pd.DataFrame(
-            transformed_array,
-            columns=transformed_columns,
-            index=data.index
-        )
-        
-        return transformed_df
-    
-    def _inverse_transform(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        对转换后的数据进行逆变换，还原为原始格式
-        
-        Parameters:
-        -----------
-        data : pd.DataFrame
-            转换后的数据
-        
-        Returns:
-        --------
-        pd.DataFrame
-            还原后的数据
-        """
-        if self._transformer is None:
-            return data.copy()
-        
-        # 逆变换
-        try:
-            inverse_array = self._transformer.inverse_transform(data)
-        except Exception as e:
-            raise ValueError(
-                f"Inverse transformation failed: {e}. "
-                f"This may occur if the transformed data has a different number of features."
-            )
-        
-        # 还原列名（使用原始特征列名）
-        original_columns = self.get_feature_columns()
-        
-        # 如果逆变换返回的列数与原始不同，说明可能有 one-hot 编码
-        if inverse_array.shape[1] != len(original_columns):
-            # 这种情况比较复杂，需要更智能的处理
-            # 暂时返回一个警告并尝试截取
-            import warnings
-            warnings.warn(
-                f"Number of features after inverse transform ({inverse_array.shape[1]}) "
-                f"doesn't match original ({len(original_columns)}). "
-                f"Attempting to truncate/pad."
-            )
-            if inverse_array.shape[1] > len(original_columns):
-                inverse_array = inverse_array[:, :len(original_columns)]
-            else:
-                # Pad with zeros
-                pad_width = ((0, 0), (0, len(original_columns) - inverse_array.shape[1]))
-                inverse_array = np.pad(inverse_array, pad_width, 'constant')
-        
-        inverse_df = pd.DataFrame(
-            inverse_array,
-            columns=original_columns,
-            index=data.index
-        )
-        
-        return inverse_df
     
     def add_counterfactuals(
         self, 
@@ -427,13 +268,39 @@ class COLAData:
     def get_label_column(self) -> str:
         """
         获取标签列名
-        
+
         Returns:
         --------
         str
             标签列名
         """
         return self.label_column
+
+    def get_numerical_features(self) -> List[str]:
+        """
+        获取数值特征列表
+
+        Returns:
+        --------
+        List[str]
+            数值特征列名的列表
+        """
+        return self.numerical_features.copy() if self.numerical_features else []
+
+    def get_categorical_features(self) -> List[str]:
+        """
+        获取类别特征列表（所有非数值特征）
+
+        Returns:
+        --------
+        List[str]
+            类别特征列名的列表
+        """
+        feature_columns = self.get_feature_columns()
+        if not self.numerical_features:
+            # 如果没有指定 numerical_features，则假设所有特征都是数值型，返回空列表
+            return []
+        return [col for col in feature_columns if col not in self.numerical_features]
     
     # ========== Factual 数据方法 ==========
     

@@ -22,10 +22,10 @@ from .policies.matching import (
 )
 from .policies.data_composer import DataComposer
 from .policies.feature_attributor import PSHAP
-from .visualization.heatmap import heatmap_massivedata
-from .visualization.highlight_dataframe import highlight_differences
-import matplotlib.pyplot as plt
-import seaborn as sns
+from .visualization.heatmap import generate_binary_heatmap
+from .visualization.heatmap_direction import generate_direction_heatmap
+from .visualization.highlight_dataframe import highlight_changes_comparison, highlight_changes_final
+from .visualization.stacked_bar import generate_stacked_bar_chart
 
 
 class COLA:
@@ -375,6 +375,10 @@ class COLA:
         """
         Highlight changes in the dataframes with comparison format (old -> new).
         
+        This is a thin wrapper around the pure visualization function. It retrieves
+        pre-computed results from the COLA instance and passes them to the visualization
+        function. Must call get_refined_counterfactual() or get_all_results() first.
+        
         This method displays changes in the format "factual_value -> counterfactual_value"
         to show both the original and modified values side by side.
         
@@ -398,39 +402,30 @@ class COLA:
         -------
         ValueError
             If refined counterfactuals have not been generated yet. 
-            Must call get_refined_counterfactual() method first before using visualization.
+            Must call get_refined_counterfactual() or get_all_results() method first.
         """
         # Check if refined counterfactuals have been generated
         if self.factual_dataframe is None or self.ace_dataframe is None or self.corresponding_counterfactual_dataframe is None:
             raise ValueError(
                 "Cannot visualize changes: refined counterfactuals have not been generated yet. "
-                "Please call get_refined_counterfactual() method first before using visualization."
+                "Please call get_refined_counterfactual() or get_all_results() method first before using visualization."
             )
         
-        # Prepare copies for highlighting (avoid modifying original data)
-        factual_df = self.factual_dataframe.copy().astype(object)
-        ace_df = self.ace_dataframe.copy().astype(object)
-        corresponding_cf_df = self.corresponding_counterfactual_dataframe.copy().astype(object)
-        
-        # Apply highlighting with "old -> new" format
-        cce_df = self._change_df_value(factual_df, corresponding_cf_df)
-        ace_df_formatted = self._change_df_value(factual_df, ace_df)
-        
-        cce_style = cce_df.style.apply(
-            lambda x: highlight_differences(x, factual_df, cce_df, self.data.get_label_column()),
-            axis=None
-        ).set_properties(**{'text-align': 'center'})
-        
-        ace_style = ace_df_formatted.style.apply(
-            lambda x: highlight_differences(x, factual_df, ace_df_formatted, self.data.get_label_column()),
-            axis=None
-        ).set_properties(**{'text-align': 'center'})
-        
-        return factual_df, cce_style, ace_style
+        # Call pure visualization function
+        return highlight_changes_comparison(
+            factual_df=self.factual_dataframe,
+            counterfactual_df=self.corresponding_counterfactual_dataframe,
+            refined_counterfactual_df=self.ace_dataframe,
+            label_column=self.data.get_label_column()
+        )
     
     def highlight_changes_final(self):
         """
         Highlight changes in the dataframes showing only the final values.
+        
+        This is a thin wrapper around the pure visualization function. It retrieves
+        pre-computed results from the COLA instance and passes them to the visualization
+        function. Must call get_refined_counterfactual() or get_all_results() first.
         
         This method displays only the final counterfactual values without showing
         the "factual -> counterfactual" format, making it cleaner for presentation.
@@ -450,31 +445,38 @@ class COLA:
         >>> display(ce_style)
         >>> # Save as HTML
         >>> ce_style.to_html('changes.html')
+        
+        Raises:
+        -------
+        ValueError
+            If refined counterfactuals have not been generated yet. 
+            Must call get_refined_counterfactual() or get_all_results() method first.
         """
-        # Prepare copies for highlighting (avoid modifying original data)
-        factual_df = self.factual_dataframe.copy().astype(object)
-        ace_df = self.ace_dataframe.copy().astype(object)
-        corresponding_cf_df = self.corresponding_counterfactual_dataframe.copy().astype(object)
+        # Check if refined counterfactuals have been generated
+        if self.factual_dataframe is None or self.ace_dataframe is None or self.corresponding_counterfactual_dataframe is None:
+            raise ValueError(
+                "Cannot visualize changes: refined counterfactuals have not been generated yet. "
+                "Please call get_refined_counterfactual() or get_all_results() method first before using visualization."
+            )
         
-        # Use original counterfactual DataFrames without modification
-        cce_df = corresponding_cf_df
-        ace_df_final = ace_df
-        
-        cce_style = cce_df.style.apply(
-            lambda x: highlight_differences(x, factual_df, cce_df, self.data.get_label_column()),
-            axis=None
-        ).set_properties(**{'text-align': 'center'})
-        
-        ace_style = ace_df_final.style.apply(
-            lambda x: highlight_differences(x, factual_df, ace_df_final, self.data.get_label_column()),
-            axis=None
-        ).set_properties(**{'text-align': 'center'})
-        
-        return factual_df, cce_style, ace_style
+        # Call pure visualization function
+        return highlight_changes_final(
+            factual_df=self.factual_dataframe,
+            counterfactual_df=self.corresponding_counterfactual_dataframe,
+            refined_counterfactual_df=self.ace_dataframe,
+            label_column=self.data.get_label_column()
+        )
     
-    def heatmap(self, save_path: Optional[str] = None, save_mode: str = "combined"):
+    def heatmap_binary(self, save_path: Optional[str] = None, save_mode: str = "combined", show_axis_labels: bool = True):
         """
-        Generate heatmap visualizations.
+        Generate binary change heatmap visualizations (shows if value changed or not).
+        
+        This is a thin wrapper around the pure visualization function. It retrieves
+        pre-computed results from the COLA instance and passes them to the visualization
+        function. Must call get_refined_counterfactual() or get_all_results() first.
+        
+        This method generates heatmaps showing binary changes: whether a value 
+        changed (red) or remained unchanged (lightgrey).
         
         Parameters:
         -----------
@@ -486,9 +488,12 @@ class COLA:
             
         save_mode : str, default="combined"
             How to save the heatmaps when save_path is provided:
-            - "combined": Save both heatmaps in a single combined image (left and right)
+            - "combined": Save both heatmaps in a single combined image (top and bottom)
             - "separate": Save two separate image files (heatmap_ce.png and heatmap_ace.png)
             - Ignored if save_path is None
+        show_axis_labels : bool, default=True
+            Whether to show x and y axis labels (column names and row indices).
+            If True, displays column names and row indices. If False, hides them.
             
         Returns:
         --------
@@ -498,95 +503,106 @@ class COLA:
         Examples:
         ---------
         >>> # Display plots in Jupyter (no saving)
-        >>> refiner.heatmap()
+        >>> refiner.heatmap_binary()
         >>> # Plots are automatically displayed in Jupyter notebook
         
         >>> # Save as combined image
-        >>> refiner.heatmap(save_path='./results', save_mode='combined')
-        >>> # Creates: ./results/combined_heatmap.png (two heatmaps side by side)
+        >>> refiner.heatmap_binary(save_path='./results', save_mode='combined')
+        >>> # Creates: ./results/combined_heatmap.png (two heatmaps stacked vertically)
         
-        >>> # Save as two separate images
-        >>> refiner.heatmap(save_path='./results', save_mode='separate')
-        >>> # Creates: ./results/heatmap_ce.png and ./results/heatmap_ace.png
+        Raises:
+        -------
+        ValueError
+            If refined counterfactuals have not been generated yet. 
+            Must call get_refined_counterfactual() or get_all_results() method first.
         """
-        print("Changes from factual to counterfactual:")
-        plot1 = heatmap_massivedata(
-            self.factual_dataframe,
-            self.corresponding_counterfactual_dataframe,
-            self.data.get_label_column()
+        # Check if refined counterfactuals have been generated
+        if self.factual_dataframe is None or self.ace_dataframe is None or self.corresponding_counterfactual_dataframe is None:
+            raise ValueError(
+                "Cannot visualize changes: refined counterfactuals have not been generated yet. "
+                "Please call get_refined_counterfactual() or get_all_results() method first before using visualization."
+            )
+        
+        # Call pure visualization function
+        return generate_binary_heatmap(
+            factual_df=self.factual_dataframe,
+            counterfactual_df=self.corresponding_counterfactual_dataframe,
+            refined_counterfactual_df=self.ace_dataframe,
+            label_column=self.data.get_label_column(),
+            save_path=save_path,
+            save_mode=save_mode,
+            show_axis_labels=show_axis_labels
         )
+    
+    def heatmap_direction(self, save_path: Optional[str] = None, save_mode: str = "combined", show_axis_labels: bool = True):
+        """
+        Generate directional change heatmap visualizations (shows if value increased, decreased, or unchanged).
         
-        print("Changes from factual to action-limited counterfactual:")
-        plot2 = heatmap_massivedata(
-            self.factual_dataframe,
-            self.ace_dataframe,
-            self.data.get_label_column()
+        This is a thin wrapper around the pure visualization function. It retrieves
+        pre-computed results from the COLA instance and passes them to the visualization
+        function. Must call get_refined_counterfactual() or get_all_results() first.
+        
+        This method generates heatmaps showing the direction of changes:
+        - Value increased: light green
+        - Value decreased: light orange
+        - Value unchanged: lightgrey
+        - Target column: changed values shown in dark blue
+        
+        Parameters:
+        -----------
+        save_path : str, optional
+            Path to save the heatmap images. 
+            If None, plots are automatically displayed in Jupyter (default).
+            If provided, saves to the specified path and closes the plots.
+            Can be a directory path or file path.
+            
+        save_mode : str, default="combined"
+            How to save the heatmaps when save_path is provided:
+            - "combined": Save both heatmaps in a single combined image (top and bottom)
+            - "separate": Save two separate image files
+            - Ignored if save_path is None
+        show_axis_labels : bool, default=True
+            Whether to show x and y axis labels (column names and row indices).
+            If True, displays column names and row indices. If False, hides them.
+            
+        Returns:
+        --------
+        tuple
+            (plot1, plot2) - Heatmap plots (matplotlib Figure objects)
+        
+        Examples:
+        ---------
+        >>> # Display plots in Jupyter (no saving)
+        >>> refiner.heatmap_direction()
+        >>> # Plots are automatically displayed in Jupyter notebook
+        
+        >>> # Save as combined image
+        >>> refiner.heatmap_direction(save_path='./results', save_mode='combined')
+        >>> # Creates: ./results/combined_direction_heatmap.png
+        
+        Raises:
+        -------
+        ValueError
+            If refined counterfactuals have not been generated yet. 
+            Must call get_refined_counterfactual() or get_all_results() method first.
+        """
+        # Check if refined counterfactuals have been generated
+        if self.factual_dataframe is None or self.ace_dataframe is None or self.corresponding_counterfactual_dataframe is None:
+            raise ValueError(
+                "Cannot visualize changes: refined counterfactuals have not been generated yet. "
+                "Please call get_refined_counterfactual() or get_all_results() method first before using visualization."
+            )
+        
+        # Call pure visualization function
+        return generate_direction_heatmap(
+            factual_df=self.factual_dataframe,
+            counterfactual_df=self.corresponding_counterfactual_dataframe,
+            refined_counterfactual_df=self.ace_dataframe,
+            label_column=self.data.get_label_column(),
+            save_path=save_path,
+            save_mode=save_mode,
+            show_axis_labels=show_axis_labels
         )
-        
-        # Handle saving if path is provided
-        if save_path is not None:
-            # Normalize the path (remove trailing slashes if present)
-            if save_path.endswith('/') or save_path.endswith('\\'):
-                save_dir = save_path.rstrip('/\\')
-            else:
-                save_dir = save_path
-            
-            os.makedirs(save_dir, exist_ok=True)
-            
-            if save_mode == "separate":
-                # Save as two separate files
-                plot1.savefig(os.path.join(save_dir, 'heatmap_counterfactual.png'), bbox_inches='tight', dpi=300)
-                plot2.savefig(os.path.join(save_dir, 'heatmap_counterfactual_with_limited_actions.png'), bbox_inches='tight', dpi=300)
-                print(f"✅ Heatmaps saved to: {os.path.join(save_dir, 'heatmap_counterfactual.png')} and {os.path.join(save_dir, 'heatmap_counterfactual_with_limited_actions.png.png')}")
-                plt.close(plot1)
-                plt.close(plot2)
-            else:  # "combined" mode (default)
-                # Save as combined image
-                # Create a figure with two subplots
-                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
-                
-                # Get the data from plot1 and plot2
-                plot1_data_ce = (self.factual_dataframe != self.corresponding_counterfactual_dataframe).astype(int)
-                plot2_data_ace = (self.factual_dataframe != self.ace_dataframe).astype(int)
-                
-                label_col = self.data.get_label_column()
-                features_ce = plot1_data_ce.drop(columns=[label_col])
-                top_layer_ce = plot1_data_ce.copy()
-                top_layer_ce.loc[:, top_layer_ce.columns != label_col] = 0
-                
-                features_ace = plot2_data_ace.drop(columns=[label_col])
-                top_layer_ace = plot2_data_ace.copy()
-                top_layer_ace.loc[:, top_layer_ace.columns != label_col] = 0
-                
-                from matplotlib.colors import ListedColormap
-                cmap_bottom = ListedColormap(['lightgrey', 'red'])
-                cmap_top = ListedColormap(['lightgrey', '#000080'])
-                
-                # Plot first heatmap
-                sns.heatmap(features_ce, cmap=cmap_bottom, annot=False, cbar=False, square=True, linewidths=0.5, ax=ax1)
-                sns.heatmap(top_layer_ce, cmap=cmap_top, annot=False, cbar=False, square=True, linewidths=0.5, alpha=0.6, ax=ax1)
-                ax1.set_xticks([])
-                ax1.set_yticks([])
-                ax1.set_title('Original Counterfactual', fontsize=12)
-                
-                # Plot second heatmap
-                sns.heatmap(features_ace, cmap=cmap_bottom, annot=False, cbar=False, square=True, linewidths=0.5, ax=ax2)
-                sns.heatmap(top_layer_ace, cmap=cmap_top, annot=False, cbar=False, square=True, linewidths=0.5, alpha=0.6, ax=ax2)
-                ax2.set_xticks([])
-                ax2.set_yticks([])
-                ax2.set_title('Counterfactual with Limited Actions', fontsize=12)
-                
-                plt.tight_layout()
-                fig.savefig(os.path.join(save_dir, 'combined_heatmap.png'), bbox_inches='tight', dpi=300)
-                print(f"✅ Combined heatmap saved to: {os.path.join(save_dir, 'combined_heatmap.png')}")
-                plt.close(fig)
-                plt.close(plot1)
-                plt.close(plot2)
-        else:
-            # Just display plots in Jupyter (plots will be automatically displayed)
-            pass
-        
-        return plot1, plot2
     
     def query_minimum_actions(self, features_to_vary: Optional[List[str]] = None):
         """
@@ -643,6 +659,146 @@ class COLA:
         
         return minimum_actions
     
+    def stacked_bar_chart(self, save_path: Optional[str] = None, refined_color: str = '#D9F2D0', counterfactual_color: str = '#FBE3D6', instance_labels: Optional[List[str]] = None):
+        """
+        Generate a horizontal stacked percentage bar chart comparing modification positions.
+
+        This is a thin wrapper around the pure visualization function. It retrieves
+        pre-computed results from the COLA instance and passes them to the visualization
+        function. Must call get_refined_counterfactual() or get_all_results() first.
+
+        This method creates a percentage-based stacked bar chart where each bar represents
+        an instance (100% total), showing the proportion of modified positions in refined
+        counterfactual vs. original counterfactual relative to factual data.
+
+        Each bar shows:
+        - Green segment (#D9F2D0): percentage of positions modified by refined_counterfactual
+        - Orange segment (#FBE3D6): percentage of additional positions modified only by counterfactual
+        - Total bar length: 100% (representing all counterfactual modifications)
+
+        Labels on bars show both percentage and actual count (e.g., "60.0% (3)")
+
+        Parameters:
+        -----------
+        save_path : str, optional
+            Path to save the chart image. If None, chart is not saved.
+            Can be a directory path or file path.
+        refined_color : str, default='#D9F2D0'
+            Color for refined counterfactual modified positions (light green)
+        counterfactual_color : str, default='#FBE3D6'
+            Color for counterfactual modified positions (light pink/orange)
+        instance_labels : list, optional
+            Custom labels for instances. If None, uses "instance 1", "instance 2", etc.
+            Length must match the number of instances.
+
+        Returns:
+        --------
+        matplotlib.figure.Figure
+            The stacked bar chart figure
+
+        Examples:
+        ---------
+        >>> # Display chart in Jupyter (no saving)
+        >>> fig = refiner.stacked_bar_chart()
+        >>> # Chart is automatically displayed in Jupyter notebook
+
+        >>> # Save chart to file
+        >>> fig = refiner.stacked_bar_chart(save_path='./results')
+        >>> # Creates: ./results/stacked_bar_chart.png
+
+        >>> # Custom instance labels and colors
+        >>> fig = refiner.stacked_bar_chart(
+        ...     instance_labels=['Sample 1', 'Sample 2', 'Sample 3', 'Sample 4'],
+        ...     refined_color='#D9F2D0',
+        ...     counterfactual_color='#FBE3D6'
+        ... )
+
+        Raises:
+        -------
+        ValueError
+            If refined counterfactuals have not been generated yet.
+            Must call get_refined_counterfactual() or get_all_results() method first.
+        """
+        # Check if refined counterfactuals have been generated
+        if self.factual_dataframe is None or self.ace_dataframe is None or self.corresponding_counterfactual_dataframe is None:
+            raise ValueError(
+                "Cannot visualize changes: refined counterfactuals have not been generated yet. "
+                "Please call get_refined_counterfactual() or get_all_results() method first before using visualization."
+            )
+        
+        # Validate instance_labels if provided
+        n_instances = len(self.factual_dataframe)
+        if instance_labels is not None and len(instance_labels) != n_instances:
+            raise ValueError(
+                f"Number of instance labels ({len(instance_labels)}) must match "
+                f"number of instances ({n_instances})"
+            )
+        
+        # Call pure visualization function
+        return generate_stacked_bar_chart(
+            factual_df=self.factual_dataframe,
+            counterfactual_df=self.corresponding_counterfactual_dataframe,
+            refined_counterfactual_df=self.ace_dataframe,
+            label_column=self.data.get_label_column(),
+            save_path=save_path,
+            refined_color=refined_color,
+            counterfactual_color=counterfactual_color,
+            instance_labels=instance_labels
+        )
+
+    def diversity(self):
+        """
+        Generate diversity analysis showing minimal feature combinations that can flip the target.
+
+        This method finds all minimal feature combinations that can change the prediction
+        from the factual's target value to the refined counterfactual's target value (e.g., from 1 to 0).
+        For each instance, it returns styled DataFrames showing the different minimal combinations.
+
+        The algorithm:
+        1. For each instance, identify features that differ between factual and refined counterfactual
+        2. Test combinations of increasing size (1 feature, 2 features, etc.)
+        3. Find minimal sets that flip the prediction from factual target to refined counterfactual target
+        4. Skip larger combinations that contain successful smaller combinations
+
+        Returns:
+        --------
+        Tuple[pd.DataFrame, List[Styler]]
+            - factual_df: Original factual data (copy)
+            - diversity_styles: List of styled DataFrames (one per instance),
+              each showing all minimal feature combinations for that instance
+
+        Example:
+        --------
+        >>> factual_df, diversity_styles = sparsifier.diversity()
+        >>> # Display results for each instance
+        >>> for i, style in enumerate(diversity_styles):
+        >>>     print(f"Instance {i+1} diversity:")
+        >>>     display(style)
+        """
+        from .visualization import generate_diversity_for_all_instances
+
+        # Check if refined counterfactuals have been generated
+        if self.factual_dataframe is None or self.ace_dataframe is None:
+            raise ValueError(
+                "Cannot perform diversity analysis: refined counterfactuals have not been generated yet. "
+                "Please run get_refined_counterfactual() or get_all_results() first."
+            )
+
+        # Check if ml_model is available
+        if self.ml_model is None:
+            raise ValueError(
+                "Cannot perform diversity analysis: ML model is not available. "
+                "Please provide ml_model when creating the sparsifier."
+            )
+
+        # Call pure visualization function
+        return generate_diversity_for_all_instances(
+            factual_df=self.factual_dataframe,
+            refined_counterfactual_df=self.ace_dataframe,
+            ml_model=self.ml_model,
+            label_column=self.data.get_label_column()
+        )
+
     # ========== Private Methods ==========
     
     def _get_matcher(self):
@@ -691,16 +847,6 @@ class COLA:
         df.columns = self.data.get_feature_columns()
         df[self.data.get_label_column()] = y
         return df
-    
-    def _change_df_value(self, factual, ce):
-        """Highlight changes in dataframe."""
-        for row in range(ce.shape[0]):
-            for col in range(ce.shape[1]):
-                val_factual = factual.iat[row, col]
-                val_ce = ce.iat[row, col]
-                if val_factual != val_ce:
-                    ce.iat[row, col] = f'{val_factual} -> {val_ce}'
-        return ce
     
     def _get_action_sequence(self, varphi, m, allowed_col_indices: Optional[np.ndarray] = None):
         """

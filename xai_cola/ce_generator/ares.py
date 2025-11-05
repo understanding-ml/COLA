@@ -20,8 +20,16 @@ SHUFFLE_COUNTERFACTUAL = True
 
 class ARecourseS(CounterFactualExplainer):  # need the feature tree
 
-    def __init__(self, ml_model: Model, data: COLAData=None):
-        super().__init__(ml_model, data)
+    def __init__(self, ml_model: Model):
+        """
+        Initialize ARES explainer
+
+        Parameters:
+        -----------
+        ml_model : Model
+            Pre-trained model wrapped in Model interface
+        """
+        super().__init__(ml_model)
 
     """
     Since we no more use the sample_num right now, we can remove the method 'get_factual_indices()'

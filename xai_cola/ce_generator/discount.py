@@ -31,9 +31,18 @@ ATTENTION: The class DisCount is only compatible with PyTorch models (backend:"p
 """
 
 class DisCount(CounterFactualExplainer):
-    def __init__(self, ml_model: Model, data: COLAData=None):
-        super().__init__(ml_model, data)
-        
+    def __init__(self, ml_model: Model):
+        """
+        Initialize DisCount explainer
+
+        Parameters:
+        -----------
+        ml_model : Model
+            Pre-trained model wrapped in Model interface
+            Must be a PyTorch model (backend='pytorch')
+        """
+        super().__init__(ml_model)
+
         # Verify that model is PyTorch
         if self.ml_model.backend != 'pytorch':
             raise ValueError(

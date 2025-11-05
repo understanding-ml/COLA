@@ -18,14 +18,16 @@ class AlibiCounterfactualInstances(CounterFactualExplainer):
     """
     Alibi-CFI algorithm: input 1 factual instance and output 1 counterfactual instance
     """
-    def __init__(self, ml_model, data: COLAData=None):
-        super().__init__(ml_model, data)
+    def __init__(self, ml_model):
+        """
+        Initialize Alibi CFI explainer
 
-        '''
-        ml_model: the Model used to predict
-        data : BaseData -> input the data without target column
-        sample_num : the number of your aim counterfactuals
-        '''
+        Parameters:
+        -----------
+        ml_model : Model
+            Pre-trained model wrapped in Model interface
+        """
+        super().__init__(ml_model)
      
 
     def generate_counterfactuals(
