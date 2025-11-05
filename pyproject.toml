@@ -43,6 +43,15 @@ dev = [
     "sphinx>=5.0",
     "sphinx-rtd-theme>=1.0",
 ]
+docs = [
+    "sphinx>=5.0",
+    "sphinx-rtd-theme>=1.0",
+    "furo>=2023.3.27",
+    "sphinx-copybutton>=0.5.0",
+    "myst-parser>=1.0.0",
+    "sphinx-autobuild>=2021.3.14",
+    "linkify-it-py>=2.0.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/your-repo/COLA"
@@ -52,7 +61,7 @@ Issues = "https://github.com/your-repo/COLA/issues"
 Paper = "https://arxiv.org/pdf/2410.05419"
 
 [tool.setuptools]
-packages = ["xai_cola", "counterfactual_explainer", "datasets"]
+packages = ["xai_cola", "datasets"]
 
 [tool.setuptools.package-dir]
 "" = "."
