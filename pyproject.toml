@@ -10,9 +10,8 @@ readme = "README.rst"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "Lei You", email = "leiyo@dtu.dk"},
-    {name = "Yijun Bian"},
     {name = "Lin Zhu", email = "s232291@dtu.dk"},
+    {name = "Lei You", email = "leiyo@dtu.dk"},
 ]
 keywords = ["explainable AI", "XAI", "counterfactual explanations", "machine learning", "interpretability"]
 classifiers = [
@@ -61,7 +60,7 @@ Issues = "https://github.com/your-repo/COLA/issues"
 Paper = "https://arxiv.org/pdf/2410.05419"
 
 [tool.setuptools]
-packages = ["xai_cola", "datasets"]
+packages = ["xai_cola"]
 
 [tool.setuptools.package-dir]
 "" = "."
