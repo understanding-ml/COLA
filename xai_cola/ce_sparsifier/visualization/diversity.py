@@ -71,7 +71,7 @@ def find_minimal_feature_combinations(
 
             # Predict using model (convert to DataFrame with feature columns only)
             test_df = pd.DataFrame([test_instance[feature_columns]])
-            prediction = ml_model.predict(test_df.values)[0]
+            prediction = ml_model.predict(test_df)[0]
 
             # If prediction matches refined counterfactual's target value, this is a successful combination
             if prediction == target_value:

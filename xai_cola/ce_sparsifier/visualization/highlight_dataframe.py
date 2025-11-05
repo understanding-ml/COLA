@@ -66,12 +66,60 @@ def _change_df_value(factual: pd.DataFrame, ce: pd.DataFrame) -> pd.DataFrame:
         DataFrame with changed values formatted as "factual_value -> counterfactual_value"
     """
     ce_formatted = ce.copy().astype(object)
+
+    # Helper to format a single value according to original factual dtype
+    def format_val(v, orig_dtype):
+        # Represent missing values as empty string for display
+        try:
+            if pd.isna(v):
+                return ""
+        except Exception:
+            # If pd.isna fails for some type, fall back to str
+            pass
+
+        # Integer-like original columns -> display as int when possible
+        try:
+            if pd.api.types.is_integer_dtype(orig_dtype):
+                try:
+                    # Some values may be floats (e.g., 1.0), convert safely
+                    iv = int(float(v))
+                    return str(iv)
+                except Exception:
+                    return str(v)
+
+            # Float original columns -> show with up to 2 decimal places
+            if pd.api.types.is_float_dtype(orig_dtype):
+                try:
+                    fv = float(v)
+                    # If effectively integer, suppress decimal part
+                    if float(fv).is_integer():
+                        return str(int(fv))
+                    return f"{fv:.2f}"
+                except Exception:
+                    return str(v)
+
+            # Boolean dtype
+            if pd.api.types.is_bool_dtype(orig_dtype):
+                return str(bool(v))
+
+            # Categorical or object: keep string representation
+            return str(v)
+        except Exception:
+            return str(v)
+
+    # Use factual's dtypes to determine formatting per column
+    col_dtypes = factual.dtypes
+
     for row in range(ce_formatted.shape[0]):
         for col in range(ce_formatted.shape[1]):
             val_factual = factual.iat[row, col]
             val_ce = ce_formatted.iat[row, col]
             if val_factual != val_ce:
-                ce_formatted.iat[row, col] = f'{val_factual} -> {val_ce}'
+                orig_dtype = col_dtypes.iloc[col] if col < len(col_dtypes) else factual.dtypes.iloc[0]
+                left = format_val(val_factual, orig_dtype)
+                right = format_val(val_ce, orig_dtype)
+                ce_formatted.iat[row, col] = f'{left} -> {right}'
+
     return ce_formatted
 
 

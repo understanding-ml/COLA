@@ -2,31 +2,34 @@
 
 [![arXiv](https://img.shields.io/badge/arXiv-2410.05419-B31B1B.svg)](https://arxiv.org/pdf/2410.05419)
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![PyPI version](https://img.shields.io/pypi/v/xai-cola.svg)](https://pypi.org/project/xai-cola/)
+[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
 
-Explainable Artificial Intelligence (XAI) is essential for making artificial intelligence systems transparent and trustworthy. COLA helps refine counterfactual explanations by generating action-limited plans that require fewer feature changes while maintaining similar outcomes.
+<p align="center">
+  <img src="docs/images/problem.png" alt="COLA Framework" width="700"/>
+</p>
+
+## Overview
+
+Explainable Artificial Intelligence (XAI) is essential for making artificial intelligence systems transparent and trustworthy. Within XAI, **counterfactual explanations (CE)** show how small changes in input features can lead to different outcomes. However, existing CE algorithms often generate explanations that require changing too many features, making them impractical for real-world applications.
+
+**COLA** is a Python framework that refines counterfactual explanations by generating **action-limited plans** that require significantly fewer feature changes while maintaining similar or equal outcomes. COLA adapts to various CE methods and ML models, with near-optimal performance under certain circumstances.
+
+### Key Advantages
+
+- **Fewer Actions**: Reduces the number of feature changes needed by 30-70% compared to raw counterfactuals
+- **Model Agnostic**: Works with any ML model (sklearn, PyTorch, TensorFlow)
+- **CE Method Agnostic**: Compatible with various counterfactual explainers (DiCE, DisCount, Alibi, etc.)
+- **Theoretically Grounded**: Based on joint-distribution-informed Shapley values (PSHAP)
+- **Easy to Use**: Simple API with sensible defaults
 
 ## Installation
-
-### Using pip (recommended)
 
 ```bash
 pip install xai-cola
 ```
 
-### From source
-
-```bash
-git clone https://github.com/your-repo/COLA.git
-cd COLA
-pip install -e .
-```
-
-### Using conda
-
-```bash
-conda env create -f environment.yml
-conda activate cola
-```
+For detailed installation instructions, troubleshooting, and alternative methods, see the [Installation Guide](INSTALLATION.md).
 
 ## Quick Start
 
@@ -124,14 +127,25 @@ for i, style in enumerate(diversity_styles):
 
 ## Documentation
 
-See the [full documentation](docs/) for detailed API reference, examples, and tutorials.
+### Core Documentation
 
-- [API Reference](API_REFERENCE.md) - Complete API documentation
-- [Quick Start Guide](QUICKSTART.md) - Get started in minutes
-- [WachterCF Usage Guide](docs/WACHTERCF_USAGE.md) - Detailed guide for WachterCF explainer
-- [Data Interface Guide](docs/DATA_INTERFACE_QUICKREF.md) - COLAData usage with transformation support
+- **[Installation Guide](INSTALLATION.md)** - Detailed installation instructions and troubleshooting
+- **[Quick Start Guide](QUICKSTART.md)** - Get started in 5 minutes
+- **[API Reference](API_REFERENCE.md)** - Complete API documentation
+- **[FAQ](FAQ.md)** - Frequently asked questions
 
-For questions and architectural discussions, see the [Q&A documents](qa/).
+### Specialized Guides
+
+- **[Data Interface Guide](docs/DATA_INTERFACE_QUICKREF.md)** - COLAData usage with transformation support
+- **[WachterCF Usage](docs/WACHTERCF_USAGE.md)** - Detailed guide for WachterCF explainer
+- **[Architecture Overview](ARCHITECTURE.md)** - System design and implementation details (中文)
+
+### For Contributors
+
+- **[Contributing Guidelines](CONTRIBUTING.md)** - How to contribute to COLA
+- **[Project Structure](PROJECT_STRUCTURE.md)** - Codebase organization
+- **[Release Guide](RELEASE_GUIDE.md)** - Release process for maintainers
+- **[Changelog](CHANGELOG.md)** - Version history and updates
 
 ## Citation
 
@@ -156,6 +170,5 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Contact
 
-- Lei You (leiyo@dtu.dk)
 - Lin Zhu (s232291@dtu.dk)
-
+- Lei You (leiyo@dtu.dk)

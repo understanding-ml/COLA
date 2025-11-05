@@ -168,8 +168,28 @@ class DiCE(CounterFactualExplainer):
         # Automatically infer categorical_features as all features minus continuous_features
         categorical_features = [feat for feat in dice_features if feat not in continuous_features]
         
+        # To avoid pandas dtype-mismatch warnings (DiCE may assign string labels to
+        # categorical columns while the original dataframe columns are int64), cast
+        # categorical columns to string/object before handing data to dice_ml.
+        # Also ensure continuous features are numeric.
+        x_with_target_cast = x_with_targetcolumn.copy()
+        x_factual_cast = x_factual.copy()
+
+        for col in categorical_features:
+            if col in x_with_target_cast.columns:
+                # cast categorical columns to string to avoid mixed-type assignments
+                x_with_target_cast[col] = x_with_target_cast[col].astype(str)
+            if col in x_factual_cast.columns:
+                x_factual_cast[col] = x_factual_cast[col].astype(str)
+
+        for col in continuous_features:
+            if col in x_with_target_cast.columns:
+                x_with_target_cast[col] = pd.to_numeric(x_with_target_cast[col], errors='coerce')
+            if col in x_factual_cast.columns:
+                x_factual_cast[col] = pd.to_numeric(x_factual_cast[col], errors='coerce')
+
         dice_data_params = {
-            'dataframe': x_with_targetcolumn,  # factual, pd.DataFrame, with target column
+            'dataframe': x_with_target_cast,  # factual, pd.DataFrame, with target column
             'continuous_features': continuous_features,
             'outcome_name': self.target_name,
         }
@@ -197,6 +217,29 @@ class DiCE(CounterFactualExplainer):
         df_counterfactual = (
             pd.concat(dice_df_list).reset_index(drop=True).drop(self.target_name, axis=1)
         )
+
+        # Attempt to restore output dtypes to match the original factual dataframe
+        try:
+            orig_factual = self.data.get_factual_all()
+            for col in df_counterfactual.columns:
+                if col in orig_factual.columns:
+                    orig_dtype = orig_factual[col].dtype
+                    try:
+                        # Numeric columns: convert back to numeric and cast if safe
+                        if pd.api.types.is_integer_dtype(orig_dtype) or pd.api.types.is_float_dtype(orig_dtype):
+                            df_counterfactual[col] = pd.to_numeric(df_counterfactual[col], errors='coerce')
+                            # Only cast to original dtype if conversion didn't introduce NaNs
+                            if not df_counterfactual[col].isna().any():
+                                df_counterfactual[col] = df_counterfactual[col].astype(orig_dtype)
+                        else:
+                            # For non-numeric columns, try to cast to the original dtype (often object)
+                            df_counterfactual[col] = df_counterfactual[col].astype(orig_dtype)
+                    except Exception:
+                        # If conversion fails for any column, leave it as-is
+                        pass
+        except Exception:
+            # If anything goes wrong retrieving original factuals, skip dtype restoration
+            pass
             
         if SHUFFLE_COUNTERFACTUAL:
             df_counterfactual = df_counterfactual.sample(frac=1).reset_index(drop=True)

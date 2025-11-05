@@ -121,11 +121,13 @@ class COLA:
             )
         
         # Extract factual and counterfactual from data
-        x_factual = data.to_numpy_factual_features()
-        x_counterfactual = data.to_numpy_counterfactual_features()
-        
-        self.x_factual = x_factual
-        self.x_counterfactual = x_counterfactual
+        # Store as DataFrames to preserve column names for sklearn Pipeline compatibility
+        self.x_factual_pandas = data.get_factual_features()
+        self.x_counterfactual_pandas = data.get_counterfactual_features()
+
+        # Also store numpy versions for backward compatibility
+        self.x_factual = data.to_numpy_factual_features()
+        self.x_counterfactual = data.to_numpy_counterfactual_features()
         self.row_indices = None
         self.col_indices = None
         
@@ -288,7 +290,7 @@ class COLA:
         
         # Calculate minimum required actions if needed
         # If limited_actions is greater than or equal to minimum required, use minimum required
-        y_corresponding_counterfactual = self.ml_model.predict(q)
+        y_corresponding_counterfactual = self.ml_model.predict(self._to_dataframe(q))
         minimum_actions, is_feasible = self._compute_minimum_actions(varphi, q, y_corresponding_counterfactual, allowed_col_indices)
         self._is_feasible_with_features = is_feasible
         
@@ -342,16 +344,17 @@ class COLA:
             x_action_constrained[row_idx, col_idx] = q_val
         
         corresponding_counterfactual = q
-        
+        print(f'corresponding_counterfactual: {corresponding_counterfactual}')
         # Get predictions
-        y_counterfactual = self.ml_model.predict(self.x_counterfactual)
-        y_counterfactual_limited = self.ml_model.predict(x_action_constrained)
-        y_corresponding_counterfactual = self.ml_model.predict(corresponding_counterfactual)
+        y_counterfactual = self.ml_model.predict(self._to_dataframe(self.x_counterfactual))
+        y_counterfactual_limited = self.ml_model.predict(self._to_dataframe(x_action_constrained))
+        y_corresponding_counterfactual = self.ml_model.predict(self._to_dataframe(corresponding_counterfactual))
         
         # Convert to DataFrames
         # Use original labels from COLAData for factual_df instead of model predictions
         factual_df = self.data.get_factual_all()
         counterfactual_df = self._return_dataframe(self.x_counterfactual, y_counterfactual, factual_df.index)
+
         refined_counterfactual_df = self._return_dataframe(x_action_constrained, y_counterfactual_limited, factual_df.index)
         
         # Store for backward compatibility with other methods (highlight_changes_comparison, highlight_changes_final, heatmap, etc.)
@@ -361,6 +364,7 @@ class COLA:
         self.corresponding_counterfactual_dataframe = self._return_dataframe(
             corresponding_counterfactual, y_corresponding_counterfactual, factual_df.index
         )
+        print(f'corresponding_counterfactual_dataframe: {self.corresponding_counterfactual_dataframe}')
         
         # Apply same data types
         for col in counterfactual_df.columns:
@@ -368,7 +372,6 @@ class COLA:
                 self.corresponding_counterfactual_dataframe[col].astype(
                     counterfactual_df[col].dtype
                 )
-        
         return factual_df, counterfactual_df, refined_counterfactual_df
     
     def highlight_changes_comparison(self):
@@ -410,7 +413,7 @@ class COLA:
                 "Cannot visualize changes: refined counterfactuals have not been generated yet. "
                 "Please call get_refined_counterfactual() or get_all_results() method first before using visualization."
             )
-        
+        print(self.corresponding_counterfactual_dataframe)
         # Call pure visualization function
         return highlight_changes_comparison(
             factual_df=self.factual_dataframe,
@@ -642,8 +645,8 @@ class COLA:
             # Get column indices for the specified features
             allowed_col_indices = [feature_columns.index(f) for f in features_to_vary]
             allowed_col_indices = np.array(allowed_col_indices)
-        
-        y_corresponding_counterfactual = self.ml_model.predict(self.q)
+
+        y_corresponding_counterfactual = self.ml_model.predict(self._to_dataframe(self.q))
         minimum_actions, is_feasible = self._compute_minimum_actions(
             self.varphi, self.q, y_corresponding_counterfactual, allowed_col_indices
         )
@@ -656,7 +659,7 @@ class COLA:
             print(f"Some samples may not reach the target prediction. Consider including more features.")
         else:
             print(f"The minimum number of actions is {minimum_actions}")
-        
+
         return minimum_actions
     
     def stacked_bar_chart(self, save_path: Optional[str] = None, refined_color: str = '#D9F2D0', counterfactual_color: str = '#FBE3D6', instance_labels: Optional[List[str]] = None):
@@ -823,12 +826,15 @@ class COLA:
     def _get_attributor(self):
         """Get attribution based on policy."""
         if self.attributor == "pshap":
+            # Get feature names from data
+            feature_names = self.data.get_feature_columns()
             varphi = PSHAP(
                 ml_model=self.ml_model,
                 x_factual=self.x_factual,
                 x_counterfactual=self.x_counterfactual,
                 joint_prob=self._get_matcher(),
-                random_state=self.random_state
+                random_state=self.random_state,
+                feature_names=feature_names
             ).calculate_varphi()
             return varphi
     
@@ -839,8 +845,49 @@ class COLA:
             joint_prob=self._get_matcher(),
             method=self.Avalues_method
         ).calculate_q()
+
         return q
     
+    def _to_dataframe(self, x):
+        """
+        Convert numpy array to DataFrame with feature names.
+
+        Parameters:
+        -----------
+        x : np.ndarray
+            Input data as numpy array
+
+        Returns:
+        --------
+        pd.DataFrame
+            DataFrame with proper column names
+        """
+        # Always return a DataFrame copy so callers can safely modify it
+        if isinstance(x, pd.DataFrame):
+            df = x.copy()
+        else:
+            df = pd.DataFrame(x, columns=self.data.get_feature_columns())
+
+        # If numerical features are defined in COLAData, treat the remaining
+        # feature columns as categorical and cast them to string. This keeps
+        # a consistent dtype expectation between training and runtime (e.g. for
+        # OneHotEncoder / DiCE) and avoids np.isnan/type issues inside sklearn.
+        try:
+            num_feats = self.data.get_numerical_features() if hasattr(self.data, 'get_numerical_features') else []
+            label_col = self.data.get_label_column() if hasattr(self.data, 'get_label_column') else None
+            cat_cols = [c for c in df.columns if c != label_col and c not in (num_feats or [])]
+            for c in cat_cols:
+                # cast to str in-place; ignore if conversion fails
+                try:
+                    df[c] = df[c].astype(str)
+                except Exception:
+                    pass
+        except Exception:
+            # Be robust: if anything goes wrong, just return the DataFrame as-is
+            return df
+
+        return df
+
     def _return_dataframe(self, x, y, index=None):
         """Convert numpy array to DataFrame with labels."""
         df = pd.DataFrame(x, index=index)
@@ -851,7 +898,7 @@ class COLA:
     def _get_action_sequence(self, varphi, m, allowed_col_indices: Optional[np.ndarray] = None):
         """
         Get action sequence for sampling counterfactual modifications.
-        
+
         Parameters:
         -----------
         varphi : np.ndarray
@@ -862,12 +909,20 @@ class COLA:
             Array of column indices that are allowed to be modified.
             If None, all columns can be modified (default).
             If specified, only actions involving these columns will be considered.
-        
+
         Returns:
         --------
         tuple
             (row_indices, col_indices) - Arrays of row and column indices for actions
         """
+        # Ensure varphi is 2D
+        if varphi.ndim == 1:
+            varphi = varphi.reshape(1, -1)
+        elif varphi.ndim > 2:
+            # If varphi has more than 2 dimensions, flatten to 2D
+            # Assuming first dimension is samples, rest should be features
+            varphi = varphi.reshape(varphi.shape[0], -1)
+
         rng = np.random.RandomState(self.random_state)
         
         if allowed_col_indices is not None:
@@ -1025,14 +1080,14 @@ class COLA:
         x_action_constrained = self.x_factual.copy()
         for row_idx, col_idx, q_val in zip(row_indices, col_indices, q_values):
             x_action_constrained[row_idx, col_idx] = q_val
-        y_counterfactual_limited_actions = self.ml_model.predict(x_action_constrained)
+        y_counterfactual_limited_actions = self.ml_model.predict(self._to_dataframe(x_action_constrained))
         result = np.sum(y_counterfactual_limited_actions != y_corresponding_counterfactual)
         return result
     
     def _find_changes_m_of_ce(self):
         """Find the number of changes in CE."""
         corresponding_counterfactual = self._get_data_composer()
-        y_corresponding_counterfactual = self.ml_model.predict(corresponding_counterfactual)
+        y_corresponding_counterfactual = self.ml_model.predict(self._to_dataframe(corresponding_counterfactual))
         m = np.sum(corresponding_counterfactual != self.x_factual)
         return m, y_corresponding_counterfactual
 

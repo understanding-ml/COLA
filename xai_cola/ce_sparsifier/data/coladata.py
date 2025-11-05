@@ -65,6 +65,26 @@ class COLAData:
         # 设置 numerical_features（仅用于记录特征类型信息）
         self.numerical_features = numerical_features if numerical_features is not None else []
 
+        # 如果明确给出了 numerical_features，则把剩余的特征当作 categorical 并
+        # 将它们的值转换为字符串类型，避免后续在交互（例如 DiCE 生成反事实）中
+        # 因类型不匹配导致的警告或错误。不要转换 label column。
+        if self.numerical_features:
+            try:
+                categorical_cols = [
+                    col for col in self.get_feature_columns() if col not in self.numerical_features
+                ]
+                for col in categorical_cols:
+                    if col in self.factual_df.columns:
+                        # 转为字符串以避免 int/str 混合导致的 pandas 警告
+                        try:
+                            self.factual_df[col] = self.factual_df[col].astype(str)
+                        except Exception:
+                            # 如果转换失败（非常罕见），则跳过该列
+                            pass
+            except Exception:
+                # 容错：任何异常都不应阻塞 COLAData 的构造
+                pass
+
         # 处理 counterfactual data（如果提供）
         self.counterfactual_df = None
         if counterfactual_data is not None:
@@ -185,6 +205,20 @@ class COLAData:
                 data_type='counterfactual',
                 reference_df=self.factual_df
             )
+            # 如果指定了 numerical_features，同样把 counterfactual 的类别特征转换为字符串
+            if self.numerical_features:
+                try:
+                    categorical_cols = [
+                        col for col in self.get_feature_columns() if col not in self.numerical_features
+                    ]
+                    for col in categorical_cols:
+                        if col in self.counterfactual_df.columns:
+                            try:
+                                self.counterfactual_df[col] = self.counterfactual_df[col].astype(str)
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
         else:
             # Counterfactual 不包含 target column
             # 首先处理特征数据

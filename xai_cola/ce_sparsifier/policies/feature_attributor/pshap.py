@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import shap
 from xai_cola.ce_sparsifier.models import Model
 
@@ -10,13 +11,18 @@ SHAP_SAMPLE_SIZE = "auto"
 
 
 class PSHAP(Attributor):
-    def __init__(self, ml_model: Model, x_factual: np, x_counterfactual: np, joint_prob: np, random_state=42):
+    def __init__(self, ml_model: Model, x_factual: np, x_counterfactual: np, joint_prob: np, random_state=42, feature_names=None):
         super().__init__(ml_model, x_factual, x_counterfactual, joint_prob)
         self.shape_sample_size = SHAP_SAMPLE_SIZE
         self.random_state = random_state
+        self.feature_names = feature_names
 
     def calculate_varphi(self):
-        shap_values = JointProbabilityExplainer(self.ml_model, random_state=self.random_state).shap_values(
+        shap_values = JointProbabilityExplainer(
+            self.ml_model,
+            random_state=self.random_state,
+            feature_names=self.feature_names
+        ).shap_values(
             self.x_factual,
             self.x_counterfactual,
             self.joint_prob,
@@ -40,7 +46,7 @@ class WeightedExplainer:
     weighted according to a given probability distribution.
     """
 
-    def __init__(self, model, random_state=42):
+    def __init__(self, model, random_state=42, feature_names=None):
         """
         Initializes the WeightedExplainer.
 
@@ -48,10 +54,21 @@ class WeightedExplainer:
                       This model is used to predict probabilities which are necessary
                       for SHAP value computation.
         :param random_state: Random seed for reproducible sampling. Default is 42.
+        :param feature_names: List of feature names to use when creating DataFrames.
         """
         self.model = model
+        self.feature_names = feature_names
         # Create a local random number generator for reproducibility
         self.rng = np.random.RandomState(random_state)
+
+    def _predict_proba_wrapper(self, X):
+        """
+        Wrapper for predict_proba that converts numpy arrays to DataFrames.
+        This prevents sklearn warnings about missing feature names.
+        """
+        if self.feature_names is not None and not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X, columns=self.feature_names)
+        return self.model.predict_proba(X)
 
     def explain_instance(
         self, x, X_baseline, weights, sample_size=1000, shap_sample_size="auto"
@@ -79,11 +96,24 @@ class WeightedExplainer:
         indice = np.unique(indice)
         sampled_X_baseline = X_baseline[indice]
 
+        # Convert to DataFrame if feature names are available
+        if self.feature_names is not None:
+            sampled_X_baseline = pd.DataFrame(sampled_X_baseline, columns=self.feature_names)
+            if x.ndim == 1:
+                x = pd.DataFrame([x], columns=self.feature_names)
+            else:
+                x = pd.DataFrame(x, columns=self.feature_names)
+
         # Use the sampled_X_baseline as the background data for this specific explanation
         explainer_temp = shap.KernelExplainer(
-            self.model.predict_proba, sampled_X_baseline
+            self._predict_proba_wrapper, sampled_X_baseline
         )
         shap_values = explainer_temp.shap_values(x, nsamples=shap_sample_size)
+
+        # Handle multi-class output: shap_values might be a list of arrays (one per class)
+        # For binary classification, take the SHAP values for the positive class (index 1)
+        if isinstance(shap_values, list):
+            shap_values = shap_values[1] if len(shap_values) > 1 else shap_values[0]
 
         return shap_values
 
@@ -94,16 +124,17 @@ class JointProbabilityExplainer:
     using joint probability distributions to weight the baseline data for each instance.
     """
 
-    def __init__(self, model, random_state=42):
+    def __init__(self, model, random_state=42, feature_names=None):
         """
         Initializes the JointProbabilityExplainer.
 
         :param model: A machine learning model that supports the predict_proba method.
                       This model is used to compute SHAP values using weighted baseline data.
         :param random_state: Random seed for reproducible sampling. Default is 42.
+        :param feature_names: List of feature names to use when creating DataFrames.
         """
         self.model = model
-        self.weighted_explainer = WeightedExplainer(model, random_state=random_state)
+        self.weighted_explainer = WeightedExplainer(model, random_state=random_state, feature_names=feature_names)
 
     def shap_values(
         self, X, X_baseline, joint_probs, sample_size=1000, shap_sample_size="auto"
