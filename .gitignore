@@ -34,9 +34,9 @@ ENV/
 *.swo
 *~
 
-# Jupyter
-.ipynb_checkpoints
-*.ipynb
+# # Jupyter
+# .ipynb_checkpoints
+# *.ipynb
 
 # Testing
 .pytest_cache/
