@@ -11,7 +11,8 @@ def find_minimal_feature_combinations(
     factual_row: pd.Series,
     refined_counterfactual_row: pd.Series,
     ml_model,
-    label_column: str
+    label_column: str,
+    cola_data=None
 ) -> List[Set[str]]:
     """
     Find all minimal feature combinations that can flip the target from factual to refined counterfactual.
@@ -30,6 +31,8 @@ def find_minimal_feature_combinations(
         ML model for prediction
     label_column : str
         Name of target column
+    cola_data : COLAData, optional
+        COLAData object for data transformation (needed when using transform_method)
 
     Returns:
     --------
@@ -71,7 +74,19 @@ def find_minimal_feature_combinations(
 
             # Predict using model (convert to DataFrame with feature columns only)
             test_df = pd.DataFrame([test_instance[feature_columns]])
-            prediction = ml_model.predict(test_df)[0]
+
+            # Transform data if cola_data is provided and has transform_method
+            if cola_data is not None and hasattr(cola_data, 'has_transformed_data') and cola_data.has_transformed_data():
+                # Transform to numerical space for prediction
+                test_df_transformed = cola_data._transform(test_df)
+                # Create DataFrame with transformed feature columns
+                test_df_for_pred = pd.DataFrame(
+                    test_df_transformed,
+                    columns=cola_data.get_transformed_feature_columns()
+                )
+                prediction = ml_model.predict(test_df_for_pred)[0]
+            else:
+                prediction = ml_model.predict(test_df)[0]
 
             # If prediction matches refined counterfactual's target value, this is a successful combination
             if prediction == target_value:
@@ -90,7 +105,8 @@ def generate_diversity_dataframe(
     Generate diversity DataFrame with all minimal combinations.
 
     The first row shows the refined counterfactual (all changes from refined CF), followed by
-    rows showing each minimal combination.
+    rows showing each minimal combination. If a minimal combination modifies exactly the same
+    features as the refined counterfactual, it is excluded since it provides no additional diversity.
 
     Parameters:
     -----------
@@ -107,7 +123,7 @@ def generate_diversity_dataframe(
     --------
     pd.DataFrame
         DataFrame with first row as refined counterfactual,
-        followed by one row per minimal combination
+        followed by one row per minimal combination (excluding duplicates)
     """
     rows = []
 
@@ -115,9 +131,20 @@ def generate_diversity_dataframe(
     complete_cf = refined_counterfactual_row.copy()
     rows.append(complete_cf)
 
-    # Following rows: minimal combinations
+    # Get the set of features that changed in refined counterfactual
+    feature_columns = [col for col in factual_row.index if col != label_column]
+    refined_cf_changes = set()
+    for col in feature_columns:
+        if factual_row[col] != refined_counterfactual_row[col]:
+            refined_cf_changes.add(col)
+
+    # Following rows: minimal combinations (excluding ones identical to refined CF)
     if minimal_combinations:
         for i, combo in enumerate(minimal_combinations):
+            # Skip if this combination is identical to the refined counterfactual changes
+            if combo == refined_cf_changes:
+                continue
+
             # Start with factual values
             row = factual_row.copy()
             # Change only features in this combination
@@ -196,7 +223,8 @@ def generate_diversity_for_all_instances(
     factual_df: pd.DataFrame,
     refined_counterfactual_df: pd.DataFrame,
     ml_model,
-    label_column: str
+    label_column: str,
+    cola_data=None
 ) -> Tuple[pd.DataFrame, List['Styler']]:
     """
     Generate diversity analysis for all instances.
@@ -215,6 +243,8 @@ def generate_diversity_for_all_instances(
         ML model for prediction
     label_column : str
         Name of target column
+    cola_data : COLAData, optional
+        COLAData object for data transformation (needed when using transform_method)
 
     Returns:
     --------
@@ -235,7 +265,8 @@ def generate_diversity_for_all_instances(
             factual_row=factual_row,
             refined_counterfactual_row=refined_counterfactual_row,
             ml_model=ml_model,
-            label_column=label_column
+            label_column=label_column,
+            cola_data=cola_data
         )
 
         # Generate diversity DataFrame

@@ -18,13 +18,19 @@ class CounterfactualExactMatchingPolicy(BaseMatcher):
 
         num_instances_factual = self.x_factual.shape[0]
         num_instances_counterfactual = self.x_counterfactual.shape[0]
-        
+
         if num_instances_factual == num_instances_counterfactual:
-            prob_matrix = np.eye(num_instances_factual)      
+            # Equal number of instances: use identity matrix (one-to-one matching)
+            prob_matrix = np.eye(num_instances_factual)
             prob_matrix = convert_matrix_to_policy(prob_matrix)  # Normalize to make the sum of all elements 1
-        else:   # ask user to provide the matrix of their own probabilities
-            raise ValueError("The number of instances in factual and counterfactual data must be the same.")
-            pass
+        else:
+            # ECT (Exact Matching) requires 1-to-1 correspondence
+            raise ValueError(
+                f"ECT (Exact Matching) matcher requires equal number of factual and counterfactual instances. "
+                f"Got {num_instances_factual} factual instances and {num_instances_counterfactual} counterfactual instances. "
+                f"Please use 'ot' (Optimal Transport), 'nn' (Nearest Neighbor), or 'cem' (Coarsened Exact Matching) matcher instead, "
+                f"which support n-to-m matching."
+            )
         return prob_matrix
     
 def convert_matrix_to_policy(prob_matrix):

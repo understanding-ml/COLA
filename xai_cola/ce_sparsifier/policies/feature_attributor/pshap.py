@@ -28,7 +28,10 @@ class PSHAP(Attributor):
             self.joint_prob,
             shap_sample_size=self.shape_sample_size,
         )
+        # print(f"[DEBUG PSHAP] shap_values shape after JointProbabilityExplainer: {shap_values.shape}")
+        # print(f"[DEBUG PSHAP] shap_values type: {type(shap_values)}")
         varphi = convert_matrix_to_policy(shap_values)
+        # print(f"[DEBUG PSHAP] varphi shape after convert_matrix_to_policy: {varphi.shape}")
         return varphi
 
 
@@ -110,10 +113,30 @@ class WeightedExplainer:
         )
         shap_values = explainer_temp.shap_values(x, nsamples=shap_sample_size)
 
+        # print(f"[DEBUG WeightedExplainer] Raw shap_values type: {type(shap_values)}")
+        # if isinstance(shap_values, list):
+        #     print(f"[DEBUG WeightedExplainer] shap_values is a list with {len(shap_values)} elements")
+        #     for i, sv in enumerate(shap_values):
+        #         print(f"[DEBUG WeightedExplainer]   Element {i} shape: {sv.shape}")
+        # else:
+        #     print(f"[DEBUG WeightedExplainer] shap_values shape: {shap_values.shape}")
+
         # Handle multi-class output: shap_values might be a list of arrays (one per class)
         # For binary classification, take the SHAP values for the positive class (index 1)
         if isinstance(shap_values, list):
+            # Case 1: shap_values is a list (older SHAP versions or some models)
             shap_values = shap_values[1] if len(shap_values) > 1 else shap_values[0]
+            # print(f"[DEBUG WeightedExplainer] After taking class 1 from list, shape: {shap_values.shape}")
+        elif isinstance(shap_values, np.ndarray) and shap_values.ndim == 3:
+            # Case 2: shap_values is a 3D array with shape (n_samples, n_features, n_classes)
+            # For binary classification, take the SHAP values for class 1 (positive class)
+            shap_values = shap_values[:, :, 1]
+            # print(f"[DEBUG WeightedExplainer] After taking class 1 from 3D array, shape: {shap_values.shape}")
+
+        # Ensure shap_values is 1D by squeezing out all dimensions of size 1
+        # This prevents issues with varphi having unexpected dimensions like (n_samples, 1, n_features)
+        shap_values = np.squeeze(shap_values)
+        # print(f"[DEBUG WeightedExplainer] After squeeze, shape: {shap_values.shape}")
 
         return shap_values
 
@@ -149,15 +172,19 @@ class JointProbabilityExplainer:
         :param num_samples: The number of samples to draw from X_baseline for each instance in X.
         :return: A numpy array of SHAP values for each instance in X.
         """
-        return np.array(
-            [
-                self.weighted_explainer.explain_instance(
-                    x,
-                    X_baseline,
-                    weights,
-                    sample_size=sample_size,
-                    shap_sample_size=shap_sample_size,
-                )
-                for x, weights in zip(X, joint_probs)
-            ]
-        )
+        # print(f"[DEBUG JointProbabilityExplainer] Computing SHAP values for {len(X)} instances")
+        results = []
+        for i, (x, weights) in enumerate(zip(X, joint_probs)):
+            result = self.weighted_explainer.explain_instance(
+                x,
+                X_baseline,
+                weights,
+                sample_size=sample_size,
+                shap_sample_size=shap_sample_size,
+            )
+            # print(f"[DEBUG JointProbabilityExplainer] Instance {i}: returned shape {result.shape}")
+            results.append(result)
+
+        final_array = np.array(results)
+        # print(f"[DEBUG JointProbabilityExplainer] Final np.array shape: {final_array.shape}")
+        return final_array

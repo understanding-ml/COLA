@@ -105,7 +105,7 @@ class COLA:
         self.data = data
         self.ml_model = ml_model
         self.random_state = random_state
-        
+
         # Verify that data has factual data
         if data.factual_df is None:
             raise ValueError(
@@ -119,6 +119,15 @@ class COLA:
                 "Data must contain counterfactual data for COLA to work. "
                 "Please use data.add_counterfactuals() to add counterfactual data first."
             )
+
+        # Verify that only one preprocessor exists (either in data or in model, not both)
+        if data.transform_method is not None and ml_model.is_pipeline:
+            raise ValueError(
+                "Cannot have preprocessor in both COLAData (transform_method) and Model (pipeline). "
+                "Please choose one:\n"
+                "  - Use COLAData with transform_method and a non-pipeline model, OR\n"
+                "  - Use a pipeline model with preprocessing and set transform_method=None in COLAData"
+            )
         
         # Extract factual and counterfactual from data
         # Store as DataFrames to preserve column names for sklearn Pipeline compatibility
@@ -128,6 +137,25 @@ class COLA:
         # Also store numpy versions for backward compatibility
         self.x_factual = data.to_numpy_factual_features()
         self.x_counterfactual = data.to_numpy_counterfactual_features()
+
+        # Get transformed data from COLAData if available
+        # COLAData已经在初始化时自动转换并保存了转换后的数据
+        self.x_factual_transformed = None
+        self.x_counterfactual_transformed = None
+        self.has_transformed_data = False
+
+        if data.has_transformed_data():
+            # 直接从 COLAData 获取转换后的数据（DataFrame 格式）
+            self.x_factual_transformed_df = data.get_transformed_factual_features()
+            self.x_counterfactual_transformed_df = data.get_transformed_counterfactual_features()
+
+            # 同时保存 NumPy 格式用于计算
+            self.x_factual_transformed = data.to_numpy_transformed_factual_features()
+            self.x_counterfactual_transformed = data.to_numpy_transformed_counterfactual_features()
+
+            self.has_transformed_data = True
+            print(f"Using transformed data from COLAData (transform_method: {type(data.transform_method).__name__})")
+
         self.row_indices = None
         self.col_indices = None
         
@@ -143,7 +171,6 @@ class COLA:
         self,
         matcher: str = "ot",
         attributor: str = "pshap",
-        Avalues_method: str = "max",
         random_state: Optional[int] = None,
         **kwargs
     ):
@@ -171,7 +198,6 @@ class COLA:
         """
         self.matcher = matcher
         self.attributor = attributor
-        self.Avalues_method = Avalues_method
         if random_state is not None:
             self.random_state = random_state
         self.matcher_params = kwargs
@@ -191,7 +217,7 @@ class COLA:
             )
         
         matcher_name = matcher_names[matcher]
-        print(f"Policy set: {attributor} with {matcher_name}, Avalues_method: {Avalues_method}")
+        print(f"Policy set: {attributor} with {matcher_name}.")
     
     def get_refined_counterfactual(self, limited_actions: int, features_to_vary: Optional[List[str]] = None):
         """
@@ -271,8 +297,12 @@ class COLA:
         """
         # Compute attribution and composition
         varphi = self._get_attributor()
-        q = self._get_data_composer()
-        
+        q_transformed = self._get_data_composer()  # q 在转换空间中（如果使用了转换）
+
+        # 统一使用转换后的数据进行所有计算和修改
+        # 只在最后展示时才转换回原始空间
+        q = q_transformed  # q 始终在转换空间中（如果有转换的话）
+
         # Get allowed column indices if features_to_vary is specified
         allowed_col_indices = None
         if features_to_vary is not None:
@@ -290,8 +320,18 @@ class COLA:
         
         # Calculate minimum required actions if needed
         # If limited_actions is greater than or equal to minimum required, use minimum required
-        y_corresponding_counterfactual = self.ml_model.predict(self._to_dataframe(q))
-        minimum_actions, is_feasible = self._compute_minimum_actions(varphi, q, y_corresponding_counterfactual, allowed_col_indices)
+        # 使用转换后的数据进行模型预测（如果有转换的话）
+        if self.has_transformed_data:
+            # 直接使用转换后的数值数据
+            y_corresponding_counterfactual = self.ml_model.predict(
+                pd.DataFrame(q, columns=self.data.get_transformed_feature_columns())
+            )
+        else:
+            y_corresponding_counterfactual = self.ml_model.predict(self._to_dataframe(q))
+
+        minimum_actions, is_feasible = self._compute_minimum_actions(
+            varphi, q, y_corresponding_counterfactual, allowed_col_indices
+        )
         self._is_feasible_with_features = is_feasible
         
         # Check if target is achievable with given features
@@ -319,59 +359,152 @@ class COLA:
         # 生成完整随机采样序列
         # Get maximum possible actions (considering allowed_col_indices if specified)
         # If allowed_col_indices is specified, count actual different positions between factual and counterfactual
+        # 注意：如果使用了转换，则 factual 和 q 都在转换空间中
+        if self.has_transformed_data:
+            x_factual_for_calc = self.x_factual_transformed
+        else:
+            x_factual_for_calc = self.x_factual
+
         if allowed_col_indices is not None:
             # Count positions where factual and counterfactual differ in allowed columns only
-            factual_allowed = self.x_factual[:, allowed_col_indices]
+            factual_allowed = x_factual_for_calc[:, allowed_col_indices]
             counterfactual_allowed = q[:, allowed_col_indices]
             diff_mask = factual_allowed != counterfactual_allowed
             total_actions = np.sum(diff_mask)
         else:
             total_actions = varphi.size
-            
+
         all_row_indices, all_col_indices = self._get_action_sequence(varphi, total_actions, allowed_col_indices)
-        
+
         # 取前 actual_actions 个
         row_indices = all_row_indices[:actual_actions]
         col_indices = all_col_indices[:actual_actions]
         self.row_indices = row_indices
         self.col_indices = col_indices
-        
-        # Apply selected actions
+
+        # Apply selected actions（在转换空间中修改，如果使用了转换）
         q_values = q[row_indices, col_indices]
-        x_action_constrained = self.x_factual.copy()
-        
+        x_action_constrained = x_factual_for_calc.copy()
+
         for row_idx, col_idx, q_val in zip(row_indices, col_indices, q_values):
             x_action_constrained[row_idx, col_idx] = q_val
-        
+
         corresponding_counterfactual = q
-        print(f'corresponding_counterfactual: {corresponding_counterfactual}')
-        # Get predictions
-        y_counterfactual = self.ml_model.predict(self._to_dataframe(self.x_counterfactual))
-        y_counterfactual_limited = self.ml_model.predict(self._to_dataframe(x_action_constrained))
-        y_corresponding_counterfactual = self.ml_model.predict(self._to_dataframe(corresponding_counterfactual))
-        
+
+        # DEBUG: 检查 factual 的预测
+        if self.has_transformed_data:
+            x_factual_df = pd.DataFrame(
+                x_factual_for_calc,
+                columns=self.data.get_transformed_feature_columns()
+            )
+            y_factual_pred = self.ml_model.predict(x_factual_df)
+            print(f"\n[DEBUG] Predictions on transformed factual: {y_factual_pred}")
+
+        # Get predictions（使用转换空间的数据进行预测）
+        # NOTE: Use corresponding_counterfactual (q) which is the result of DataComposer
+        # This ensures we have N counterfactuals corresponding to N factuals (even if original had M counterfactuals)
+        if self.has_transformed_data:
+            # DEBUG: 检查转换后的 counterfactual 预测
+            x_counterfactual_transformed_df = pd.DataFrame(
+                self.x_counterfactual_transformed,
+                columns=self.data.get_transformed_feature_columns()
+            )
+            y_cf_transformed_pred = self.ml_model.predict(x_counterfactual_transformed_df)
+            print(f"\n[DEBUG] Predictions on transformed counterfactual: {y_cf_transformed_pred}")
+
+            # DEBUG: 检查 x_action_constrained 的预测
+            x_action_constrained_df = pd.DataFrame(
+                x_action_constrained,
+                columns=self.data.get_transformed_feature_columns()
+            )
+            y_counterfactual_limited = self.ml_model.predict(x_action_constrained_df)
+            print(f"[DEBUG] Predictions on x_action_constrained (before inverse_transform): {y_counterfactual_limited}")
+
+            # DEBUG: 检查 corresponding_counterfactual (q) 的预测
+            corresponding_counterfactual_df = pd.DataFrame(
+                corresponding_counterfactual,
+                columns=self.data.get_transformed_feature_columns()
+            )
+            y_corresponding_counterfactual = self.ml_model.predict(corresponding_counterfactual_df)
+            print(f"[DEBUG] Predictions on corresponding_counterfactual (q): {y_corresponding_counterfactual}")
+        else:
+            y_counterfactual_limited = self.ml_model.predict(self._to_dataframe(x_action_constrained))
+            y_corresponding_counterfactual = self.ml_model.predict(self._to_dataframe(corresponding_counterfactual))
+
         # Convert to DataFrames
+        # 如果使用了转换，需要将结果转换回原始空间进行展示
+        if self.has_transformed_data:
+            # 将转换空间的数据转换回原始空间
+            corresponding_counterfactual_df = pd.DataFrame(
+                corresponding_counterfactual,
+                columns=self.data.get_transformed_feature_columns()
+            )
+            corresponding_counterfactual_original = self.data._inverse_transform(corresponding_counterfactual_df)
+            # _inverse_transform 已经返回了正确列顺序的 DataFrame，不需要再重排
+
+            x_action_constrained_df = pd.DataFrame(
+                x_action_constrained,
+                columns=self.data.get_transformed_feature_columns()
+            )
+            x_action_constrained_original = self.data._inverse_transform(x_action_constrained_df)
+            # _inverse_transform 已经返回了正确列顺序的 DataFrame，不需要再重排
+        else:
+            corresponding_counterfactual_original = corresponding_counterfactual
+            x_action_constrained_original = x_action_constrained
+
         # Use original labels from COLAData for factual_df instead of model predictions
         factual_df = self.data.get_factual_all()
-        counterfactual_df = self._return_dataframe(self.x_counterfactual, y_counterfactual, factual_df.index)
 
-        refined_counterfactual_df = self._return_dataframe(x_action_constrained, y_counterfactual_limited, factual_df.index)
-        
+        # 如果 inverse_transform 返回的是 DataFrame，转换为 NumPy array
+        if isinstance(corresponding_counterfactual_original, pd.DataFrame):
+            corresponding_counterfactual_original = corresponding_counterfactual_original.values
+        if isinstance(x_action_constrained_original, pd.DataFrame):
+            x_action_constrained_original = x_action_constrained_original.values
+
+        # Use corresponding_counterfactual (q) instead of original x_counterfactual
+        # This ensures counterfactual_df has the same number of rows as factual_df
+        counterfactual_df = self._return_dataframe(
+            corresponding_counterfactual_original, y_corresponding_counterfactual, factual_df.index
+        )
+
+        refined_counterfactual_df = self._return_dataframe(
+            x_action_constrained_original, y_counterfactual_limited, factual_df.index
+        )
+
+        # Convert numerical features to int type for counterfactual_df and refined_counterfactual_df
+        # This must be done BEFORE storing to self.ce_dataframe and self.ace_dataframe
+        numerical_features = self.data.get_numerical_features() if hasattr(self.data, 'get_numerical_features') else []
+        if numerical_features:
+            for col in numerical_features:
+                if col in counterfactual_df.columns:
+                    try:
+                        counterfactual_df[col] = counterfactual_df[col].round().astype(int)
+                    except (ValueError, TypeError):
+                        # If conversion fails, keep original dtype
+                        pass
+                if col in refined_counterfactual_df.columns:
+                    try:
+                        refined_counterfactual_df[col] = refined_counterfactual_df[col].round().astype(int)
+                    except (ValueError, TypeError):
+                        # If conversion fails, keep original dtype
+                        pass
+
         # Store for backward compatibility with other methods (highlight_changes_comparison, highlight_changes_final, heatmap, etc.)
         self.factual_dataframe = factual_df
         self.ce_dataframe = counterfactual_df
         self.ace_dataframe = refined_counterfactual_df
         self.corresponding_counterfactual_dataframe = self._return_dataframe(
-            corresponding_counterfactual, y_corresponding_counterfactual, factual_df.index
+            corresponding_counterfactual_original, y_corresponding_counterfactual, factual_df.index
         )
-        print(f'corresponding_counterfactual_dataframe: {self.corresponding_counterfactual_dataframe}')
-        
-        # Apply same data types
+
+        # Apply same data types to corresponding_counterfactual_dataframe
+        # This ensures it has the same int types as counterfactual_df
         for col in counterfactual_df.columns:
             self.corresponding_counterfactual_dataframe[col] = \
                 self.corresponding_counterfactual_dataframe[col].astype(
                     counterfactual_df[col].dtype
                 )
+
         return factual_df, counterfactual_df, refined_counterfactual_df
     
     def highlight_changes_comparison(self):
@@ -413,7 +546,7 @@ class COLA:
                 "Cannot visualize changes: refined counterfactuals have not been generated yet. "
                 "Please call get_refined_counterfactual() or get_all_results() method first before using visualization."
             )
-        print(self.corresponding_counterfactual_dataframe)
+
         # Call pure visualization function
         return highlight_changes_comparison(
             factual_df=self.factual_dataframe,
@@ -540,16 +673,17 @@ class COLA:
     def heatmap_direction(self, save_path: Optional[str] = None, save_mode: str = "combined", show_axis_labels: bool = True):
         """
         Generate directional change heatmap visualizations (shows if value increased, decreased, or unchanged).
-        
+
         This is a thin wrapper around the pure visualization function. It retrieves
         pre-computed results from the COLA instance and passes them to the visualization
         function. Must call get_refined_counterfactual() or get_all_results() first.
-        
+
         This method generates heatmaps showing the direction of changes:
-        - Value increased: light green
-        - Value decreased: light orange
+        - Numerical features (increased): light blue
+        - Numerical features (decreased): light cyan
+        - Categorical features (changed): peru (soft warm tone)
         - Value unchanged: lightgrey
-        - Target column: changed values shown in dark blue
+        - Target column: changed values shown in black
         
         Parameters:
         -----------
@@ -596,12 +730,16 @@ class COLA:
                 "Please call get_refined_counterfactual() or get_all_results() method first before using visualization."
             )
         
+        # Get numerical features from data object
+        numerical_features = self.data.get_numerical_features() if hasattr(self.data, 'get_numerical_features') else None
+
         # Call pure visualization function
         return generate_direction_heatmap(
             factual_df=self.factual_dataframe,
             counterfactual_df=self.corresponding_counterfactual_dataframe,
             refined_counterfactual_df=self.ace_dataframe,
             label_column=self.data.get_label_column(),
+            numerical_features=numerical_features,
             save_path=save_path,
             save_mode=save_mode,
             show_axis_labels=show_axis_labels
@@ -646,7 +784,15 @@ class COLA:
             allowed_col_indices = [feature_columns.index(f) for f in features_to_vary]
             allowed_col_indices = np.array(allowed_col_indices)
 
-        y_corresponding_counterfactual = self.ml_model.predict(self._to_dataframe(self.q))
+        # Use transformed data for model prediction if available (consistent with _compute_refined_results)
+        if self.has_transformed_data:
+            # Directly use transformed numerical data
+            y_corresponding_counterfactual = self.ml_model.predict(
+                pd.DataFrame(self.q, columns=self.data.get_transformed_feature_columns())
+            )
+        else:
+            y_corresponding_counterfactual = self.ml_model.predict(self._to_dataframe(self.q))
+
         minimum_actions, is_feasible = self._compute_minimum_actions(
             self.varphi, self.q, y_corresponding_counterfactual, allowed_col_indices
         )
@@ -799,39 +945,192 @@ class COLA:
             factual_df=self.factual_dataframe,
             refined_counterfactual_df=self.ace_dataframe,
             ml_model=self.ml_model,
-            label_column=self.data.get_label_column()
+            label_column=self.data.get_label_column(),
+            cola_data=self.data
         )
 
     # ========== Private Methods ==========
+
+    # def _get_matcher(self):
+    #     """Get matcher based on policy."""
+    #     # For matchers that require numerical distance computation (ot, cem, nn),
+    #     # we need to preprocess the data using the pipeline's preprocessor
+    #     # to convert categorical features (strings) to numerical representations
+    #     needs_preprocessing = self.matcher in ["ot", "cem", "nn"]
+
+    #     if needs_preprocessing and self.ml_model.is_pipeline:
+    #         # Extract preprocessor from pipeline
+    #         try:
+    #             import scipy.sparse as sp
+    #             preprocessor = self.ml_model.model.named_steps.get('preprocessor')
+    #             if preprocessor is not None:
+    #                 # Transform data using preprocessor (OneHotEncoder returns sparse matrix by default)
+    #                 x_factual_transformed = preprocessor.transform(self.x_factual_pandas)
+    #                 x_counterfactual_transformed = preprocessor.transform(self.x_counterfactual_pandas)
+
+    #                 # Convert sparse matrix to dense array (OT requires dense arrays)
+    #                 if sp.issparse(x_factual_transformed):
+    #                     x_factual_transformed = x_factual_transformed.toarray()
+    #                 if sp.issparse(x_counterfactual_transformed):
+    #                     x_counterfactual_transformed = x_counterfactual_transformed.toarray()
+
+    #                 # Ensure float type for numerical operations
+    #                 x_factual_transformed = np.asarray(x_factual_transformed, dtype=float)
+    #                 x_counterfactual_transformed = np.asarray(x_counterfactual_transformed, dtype=float)
+    #             else:
+    #                 # No preprocessor found, use original data
+    #                 x_factual_transformed = self.x_factual
+    #                 x_counterfactual_transformed = self.x_counterfactual
+    #         except Exception as e:
+    #             # If preprocessing fails, fall back to original data and print warning
+    #             print(f"Warning: Preprocessing failed ({type(e).__name__}: {e}), using original data")
+    #             x_factual_transformed = self.x_factual
+    #             x_counterfactual_transformed = self.x_counterfactual
+    #     else:
+    #         # For ECT matcher or non-pipeline models, use original data
+    #         x_factual_transformed = self.x_factual
+    #         x_counterfactual_transformed = self.x_counterfactual
+
+    #     if self.matcher == "ot":
+    #         return CounterfactualOptimalTransportPolicy(
+    #             x_factual_transformed, x_counterfactual_transformed
+    #         ).compute_prob_matrix_of_factual_and_counterfactual()
+    #     elif self.matcher == "cem":
+    #         return CounterfactualSoftCEMPolicy(
+    #             x_factual_transformed, x_counterfactual_transformed
+    #         ).compute_prob_matrix_of_factual_and_counterfactual()
+    #     elif self.matcher == "nn":
+    #         return CounterfactualNearestNeighborMatchingPolicy(
+    #             x_factual_transformed, x_counterfactual_transformed
+    #         ).compute_prob_matrix_of_factual_and_counterfactual()
+    #     elif self.matcher == "ect":
+    #         return CounterfactualExactMatchingPolicy(
+    #             x_factual_transformed, x_counterfactual_transformed
+    #         ).compute_prob_matrix_of_factual_and_counterfactual()
     
+
     def _get_matcher(self):
-        """Get matcher based on policy."""
+        """
+        Get matcher based on policy.
+
+        如果 COLAData 提供了转换后的数据（has_transformed_data=True），
+        则使用转换后的数据进行 matching 计算，以确保在转换空间中计算距离。
+        否则，使用预处理方法转换数据（例如从 pipeline 中提取 preprocessor）。
+        """
+
+        # 优先使用 COLAData 提供的转换后数据
+        if self.has_transformed_data:
+            x_factual_for_matching = self.x_factual_transformed
+            x_counterfactual_for_matching = self.x_counterfactual_transformed
+        else:
+            # 如果没有转换后的数据，使用原有的预处理方法
+            # （例如从 pipeline 中提取 preprocessor 进行转换）
+            x_factual_for_matching = self._preprocess_for_matching(self.x_factual_pandas)
+            x_counterfactual_for_matching = self._preprocess_for_matching(self.x_counterfactual_pandas)
+
         if self.matcher == "ot":
             return CounterfactualOptimalTransportPolicy(
-                self.x_factual, self.x_counterfactual
+                x_factual_for_matching, x_counterfactual_for_matching
             ).compute_prob_matrix_of_factual_and_counterfactual()
         elif self.matcher == "cem":
             return CounterfactualSoftCEMPolicy(
-                self.x_factual, self.x_counterfactual
+                x_factual_for_matching, x_counterfactual_for_matching
             ).compute_prob_matrix_of_factual_and_counterfactual()
         elif self.matcher == "nn":
             return CounterfactualNearestNeighborMatchingPolicy(
-                self.x_factual, self.x_counterfactual
+                x_factual_for_matching, x_counterfactual_for_matching
             ).compute_prob_matrix_of_factual_and_counterfactual()
         elif self.matcher == "ect":
             return CounterfactualExactMatchingPolicy(
-                self.x_factual, self.x_counterfactual
+                x_factual_for_matching, x_counterfactual_for_matching
             ).compute_prob_matrix_of_factual_and_counterfactual()
-    
+
+    def _preprocess_for_matching(self, data):
+        """
+        Preprocess data for matching by transforming to numerical format.
+        
+        Args:
+            data: Input data (pandas DataFrame or numpy array)
+            
+        Returns:
+            Numerical numpy array suitable for distance calculations
+        """
+        
+        # If already a numerical numpy array, return as is
+        if isinstance(data, np.ndarray) and np.issubdtype(data.dtype, np.number):
+            return data
+        
+        # If DataFrame with all numerical columns, convert to array
+        if isinstance(data, pd.DataFrame):
+            if data.select_dtypes(include=['object', 'string']).shape[1] == 0:
+                return data.values
+        
+        # Try to use ml_model's preprocessor for transformation
+        if hasattr(self.ml_model, 'pipeline'):
+            try:
+                # Check if preprocessor exists in pipeline
+                if hasattr(self.ml_model.pipeline, 'named_steps') and 'preprocessor' in self.ml_model.pipeline.named_steps:
+                    preprocessor = self.ml_model.pipeline.named_steps['preprocessor']
+                    transformed = preprocessor.transform(data)
+                    
+                    # Convert sparse matrix to dense if needed
+                    if hasattr(transformed, 'toarray'):
+                        transformed = transformed.toarray()
+                    
+                    return transformed
+                
+                # Alternative: check using dict
+                elif 'preprocessor' in dict(self.ml_model.pipeline.steps):
+                    preprocessor = dict(self.ml_model.pipeline.steps)['preprocessor']
+                    transformed = preprocessor.transform(data)
+                    
+                    # Convert sparse matrix to dense if needed
+                    if hasattr(transformed, 'toarray'):
+                        transformed = transformed.toarray()
+                    
+                    return transformed
+                    
+            except Exception as e:
+                print(f"Warning: Failed to use preprocessor for transformation: {e}")
+                print("Attempting fallback conversion...")
+        
+        # Fallback: try to convert DataFrame to float
+        if isinstance(data, pd.DataFrame):
+            try:
+                # Try converting string numbers to float
+                return data.apply(pd.to_numeric, errors='coerce').values
+            except Exception as e:
+                print(f"Warning: Failed to convert DataFrame to numerical: {e}")
+        
+        # Last resort: return as numpy array
+        if isinstance(data, np.ndarray):
+            return data
+        else:
+            return np.array(data)
+
     def _get_attributor(self):
-        """Get attribution based on policy."""
+        """
+        Get attribution based on policy.
+
+        如果 COLAData 提供了转换后的数据，则使用转换后的数据计算 varphi。
+        """
         if self.attributor == "pshap":
-            # Get feature names from data
-            feature_names = self.data.get_feature_columns()
+            # 选择使用原始数据还是转换后的数据
+            if self.has_transformed_data:
+                x_factual_for_varphi = self.x_factual_transformed
+                x_counterfactual_for_varphi = self.x_counterfactual_transformed
+                # 使用转换后的列名
+                feature_names = self.data.get_transformed_feature_columns()
+            else:
+                x_factual_for_varphi = self.x_factual
+                x_counterfactual_for_varphi = self.x_counterfactual
+                # 使用原始列名
+                feature_names = self.data.get_feature_columns()
+
             varphi = PSHAP(
                 ml_model=self.ml_model,
-                x_factual=self.x_factual,
-                x_counterfactual=self.x_counterfactual,
+                x_factual=x_factual_for_varphi,
+                x_counterfactual=x_counterfactual_for_varphi,
                 joint_prob=self._get_matcher(),
                 random_state=self.random_state,
                 feature_names=feature_names
@@ -839,11 +1138,20 @@ class COLA:
             return varphi
     
     def _get_data_composer(self):
-        """Get data composer based on policy."""
+        """
+        Get data composer based on policy.
+
+        如果 COLAData 提供了转换后的数据，则使用转换后的数据计算 q。
+        """
+        # 选择使用原始数据还是转换后的数据
+        if self.has_transformed_data:
+            x_counterfactual_for_q = self.x_counterfactual_transformed
+        else:
+            x_counterfactual_for_q = self.x_counterfactual
+
         q = DataComposer(
-            x_counterfactual=self.x_counterfactual,
+            x_counterfactual=x_counterfactual_for_q,
             joint_prob=self._get_matcher(),
-            method=self.Avalues_method
         ).calculate_q()
 
         return q
@@ -889,7 +1197,29 @@ class COLA:
         return df
 
     def _return_dataframe(self, x, y, index=None):
-        """Convert numpy array to DataFrame with labels."""
+        """
+        Convert numpy array to DataFrame with labels.
+
+        Parameters:
+        -----------
+        x : np.ndarray
+            Feature data
+        y : np.ndarray
+            Target predictions
+        index : pd.Index, optional
+            Index for the DataFrame. If the length doesn't match x,
+            a new RangeIndex will be created instead.
+
+        Returns:
+        --------
+        pd.DataFrame
+            DataFrame with features and target column
+        """
+        # Check if index length matches data length
+        if index is not None and len(index) != len(x):
+            # Index length mismatch, create new index
+            index = None
+
         df = pd.DataFrame(x, index=index)
         df.columns = self.data.get_feature_columns()
         df[self.data.get_label_column()] = y
@@ -996,12 +1326,18 @@ class COLA:
             - is_feasible: bool - True if target can be achieved, False if even using all actions cannot achieve target
         """
         # Calculate maximum possible actions
-        # If allowed_col_indices is specified, max actions = number of different positions 
+        # If allowed_col_indices is specified, max actions = number of different positions
         # between factual and counterfactual in allowed features only
         # Otherwise, max actions = all possible actions (varphi.size)
+        # 注意：如果使用了转换，则使用转换后的 factual 数据
+        if self.has_transformed_data:
+            x_factual_for_calc = self.x_factual_transformed
+        else:
+            x_factual_for_calc = self.x_factual
+
         if allowed_col_indices is not None:
             # Count positions where factual and counterfactual differ in allowed columns only
-            factual_allowed = self.x_factual[:, allowed_col_indices]
+            factual_allowed = x_factual_for_calc[:, allowed_col_indices]
             counterfactual_allowed = q[:, allowed_col_indices]
             # Count all positions where values differ
             diff_mask = factual_allowed != counterfactual_allowed
@@ -1064,23 +1400,37 @@ class COLA:
         """
         # Get maximum possible actions (considering allowed_col_indices if specified)
         # If allowed_col_indices is specified, count actual different positions between factual and counterfactual
+        # 注意：如果使用了转换，则使用转换后的 factual 数据
+        if self.has_transformed_data:
+            x_factual_for_calc = self.x_factual_transformed
+        else:
+            x_factual_for_calc = self.x_factual
+
         if allowed_col_indices is not None:
             # Count positions where factual and counterfactual differ in allowed columns only
-            factual_allowed = self.x_factual[:, allowed_col_indices]
+            factual_allowed = x_factual_for_calc[:, allowed_col_indices]
             counterfactual_allowed = q[:, allowed_col_indices]
             diff_mask = factual_allowed != counterfactual_allowed
             total_actions = np.sum(diff_mask)
         else:
             total_actions = varphi.size
-            
+
         all_row_indices, all_col_indices = self._get_action_sequence(varphi, total_actions, allowed_col_indices)
         row_indices = all_row_indices[:mid]
         col_indices = all_col_indices[:mid]
         q_values = q[row_indices, col_indices]
-        x_action_constrained = self.x_factual.copy()
+        x_action_constrained = x_factual_for_calc.copy()
         for row_idx, col_idx, q_val in zip(row_indices, col_indices, q_values):
             x_action_constrained[row_idx, col_idx] = q_val
-        y_counterfactual_limited_actions = self.ml_model.predict(self._to_dataframe(x_action_constrained))
+
+        # 使用转换空间的数据进行预测
+        if self.has_transformed_data:
+            y_counterfactual_limited_actions = self.ml_model.predict(
+                pd.DataFrame(x_action_constrained, columns=self.data.get_transformed_feature_columns())
+            )
+        else:
+            y_counterfactual_limited_actions = self.ml_model.predict(self._to_dataframe(x_action_constrained))
+
         result = np.sum(y_counterfactual_limited_actions != y_corresponding_counterfactual)
         return result
     
