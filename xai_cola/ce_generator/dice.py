@@ -74,7 +74,8 @@ class DiCE(CounterFactualExplainer):
             factual_class: int = 1,
             total_cfs: int = 1,
             features_to_keep: list = None,
-            continuous_features: list = None
+            continuous_features: list = None,
+            permitted_range: dict = None,
             ) -> tuple:
 
         """
@@ -146,7 +147,7 @@ class DiCE(CounterFactualExplainer):
         # Prepare for DiCE - use pipeline if available, otherwise use the model directly
         if self.ml_model.is_pipeline:
             # Use the full pipeline for DiCE (recommended)
-            dice_model = dice_ml.Model(model=self.ml_model.pipeline, backend="sklearn")
+            dice_model = dice_ml.Model(model=self.ml_model, backend="sklearn")
         else:
             # Use the model directly (may not work well if preprocessing is needed)
             dice_model = dice_ml.Model(model=self.ml_model.model, backend=self.ml_model.backend)
@@ -167,7 +168,7 @@ class DiCE(CounterFactualExplainer):
         
         # Automatically infer categorical_features as all features minus continuous_features
         categorical_features = [feat for feat in dice_features if feat not in continuous_features]
-        
+
         # To avoid pandas dtype-mismatch warnings (DiCE may assign string labels to
         # categorical columns while the original dataframe columns are int64), cast
         # categorical columns to string/object before handing data to dice_ml.
@@ -200,10 +201,11 @@ class DiCE(CounterFactualExplainer):
         dice_data = dice_ml.Data(**dice_data_params)
         dice_explainer = dice_ml.Dice(dice_data, dice_model)
         dice_results = dice_explainer.generate_counterfactuals(
-            query_instances = x_factual,  # factual data (original raw data), pd.DataFrame, without target column
+            query_instances = x_factual_cast,  # factual data with type casting applied
             features_to_vary = features_to_vary,
-            desired_class="opposite",  # desired class is opposite of factual_class
+            desired_class=1-factual_class,  # desired class is opposite of factual_class
             total_CFs=total_cfs,
+            permitted_range=permitted_range,  # explicit feature range constraints
         )
 
         # Iterate through each result and append to the DataFrame
@@ -246,17 +248,29 @@ class DiCE(CounterFactualExplainer):
 
         # Prepare factual with target column - get directly from COLAData
         factual_df = self.data.get_factual_all()
-        
+
         # Prepare counterfactual with target column
-        # Counterfactual target should be the desired class (1 - factual_class)
-        counterfactual_target_value = 1 - factual_class
+        # IMPORTANT: Use model predictions instead of assuming counterfactual class
+        # DiCE may not always successfully flip the prediction, so we verify
         counterfactual_df = df_counterfactual.copy()
-        counterfactual_df[self.target_name] = counterfactual_target_value
-        
+
+        # Get actual predictions for the counterfactuals
+        counterfactual_predictions = self.ml_model.predict(df_counterfactual)
+        counterfactual_df[self.target_name] = counterfactual_predictions
+
+        # Optional: Log if any counterfactuals failed to flip
+        desired_class = 1 - factual_class
+        successful_flips = np.sum(counterfactual_predictions == desired_class)
+        total_samples = len(counterfactual_predictions)
+        if successful_flips < total_samples:
+            print(f"Warning: Only {successful_flips}/{total_samples} counterfactuals successfully flipped to class {desired_class}")
+            print(f"Factual predictions: {pred_values}")
+            print(f"Counterfactual predictions: {counterfactual_predictions}")
+
         # Ensure column order matches factual (target column at the end)
         all_columns = factual_df.columns.tolist()
         counterfactual_df = counterfactual_df[all_columns]
-        
+
         # Return pandas DataFrames directly
         return factual_df, counterfactual_df    
     

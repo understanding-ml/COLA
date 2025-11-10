@@ -69,16 +69,17 @@ class DisCount(CounterFactualExplainer):
             self,
             data: COLAData=None,
             factual_class: int=1,
-            lr: float=1e-1,
+            lr: float=5e-2,
             n_proj: int=10,
-            delta: float=0.05,
+            delta: float=0.15,
             U_1: float=0.4,
-            U_2: float=0.3,
-            l: float=0.2,
+            U_2: float=0.02,
+            l: float=0.15,
             r: float=1,
-            max_iter: int=15,
-            tau: float=1e2,
+            max_iter: int=100,
+            tau: float=1e1,
             silent: bool=False,
+            explain_columns: list=None,
             ) -> tuple:
         """
         Implement the DisCount algorithm to generate counterfactuals.
@@ -88,7 +89,7 @@ class DisCount(CounterFactualExplainer):
         data : COLAData, optional
             Factual data wrapper
         factual_class : int, default=1
-            The class of the factual data (Normally, we set the factual_class as 1 
+            The class of the factual data (Normally, we set the factual_class as 1
             as the prediction of factual data is 1. And we hope the prediction of counterfactual data is 0)
         lr : float, default=1e-1
             Learning rate
@@ -110,6 +111,9 @@ class DisCount(CounterFactualExplainer):
             Step size (can't be too large or too small)
         silent : bool, default=False
             Whether to print the log information
+        explain_columns : list, optional
+            List of column names to use for explanation
+            If None, use all columns from transformed data
 
         Returns:
         --------
@@ -119,11 +123,11 @@ class DisCount(CounterFactualExplainer):
             counterfactual_df : pd.DataFrame
                 DataFrame with shape (n_samples, n_features + 1), includes target column
                 Target column values for counterfactual are set to (1 - factual_class)
-        
+
         Notes:
         ------
         - Only compatible with PyTorch models (backend='pytorch')
-        - Supports data transformation via COLAData.transform parameter
+        - Supports data transformation via COLAData.transform_method parameter
         - Automatically handles inverse transformation of counterfactuals
         """
         self.lr = lr
@@ -136,39 +140,63 @@ class DisCount(CounterFactualExplainer):
         self.max_iter = max_iter
         self.tau = tau
         self.silent = silent
-        
+
         # Call the data processing logic from the parent class
         self._process_data(data)
 
         x_chosen = self.x_factual_pandas  # factual, dataframe type, without target_column
 
+        # DEBUG: Print original factual data
+        if not silent:
+            print("\n" + "="*80)
+            print("DEBUG: Factual data (original space)")
+            print("="*80)
+            print(f"Shape: {x_chosen.shape}")
+            print(f"Columns: {x_chosen.columns.tolist()}")
+            print(x_chosen)
+            print()
+
         # Apply transformation if needed
         if self.data.transform_method is not None:
             x_chosen_transformed = self.data._transform(x_chosen)
+
+            # DEBUG: Print transformed factual data
+            if not silent:
+                print("\n" + "="*80)
+                print("DEBUG: Factual data AFTER transform (transformed space)")
+                print("="*80)
+                print(f"Shape: {x_chosen_transformed.shape}")
+                print(f"Columns: {x_chosen_transformed.columns.tolist()}")
+                print(x_chosen_transformed)
+                print()
         else:
             x_chosen_transformed = x_chosen
 
+        # Determine explain_columns: use provided or default to all transformed columns
+        if explain_columns is None:
+            explain_columns = x_chosen_transformed.columns.tolist()
+
         df_factual_ext = x_chosen_transformed.copy()
-        
+
         # Get predictions on transformed data if needed
         if self.data.transform_method is not None:
             pred_values = self.ml_model.predict(x_chosen_transformed.values)
         else:
             pred_values = self.ml_model.predict(x_chosen.values)
-            
+
         df_factual_ext[self.target_name] = pred_values
-        
+
         y_target = torch.FloatTensor(
             [1 - factual_class for _ in range(x_chosen_transformed.shape[0])]
         )
 
         # Get PyTorch model from wrapper
         pytorch_model = self.ml_model._get_wrapped_model().model
-        
+
         discount_explainer = DistributionalCounterfactualExplainer(
             model = pytorch_model,
             df_X = x_chosen_transformed,
-            explain_columns = x_chosen_transformed.columns,
+            explain_columns = explain_columns,
             y_target = y_target,
             lr = self.lr,
             n_proj = self.n_proj,
@@ -176,207 +204,112 @@ class DisCount(CounterFactualExplainer):
         )
 
         discount_explainer.optimize(
-            U_1 = self.U_1, 
-            U_2 = self.U_2, 
-            l = self.l, 
-            r = self.r, 
-            max_iter = self.max_iter, 
-            tau = self.tau, 
+            U_1 = self.U_1,
+            U_2 = self.U_2,
+            l = self.l,
+            r = self.r,
+            max_iter = self.max_iter,
+            tau = self.tau,
             silent = self.silent
         )
-        
+
+        # Get the complete optimized data (all features) from DisCount
+        # Note: discount_explainer.best_X contains ALL features, not just explain_columns
+        best_X_all_features = discount_explainer.best_X.detach().numpy()
+
+        # Create DataFrame with all features
         df_counterfactual_transformed = pd.DataFrame(
-            discount_explainer.best_X.detach().numpy(),
-            columns=discount_explainer.explain_columns,
+            best_X_all_features,
+            columns=x_chosen_transformed.columns,  # Use all original column names
             index=x_chosen_transformed.index,
         )
-        
+
+        # CRITICAL: Verify that the generated counterfactuals achieve the target prediction
+        # This is the ONLY place we need to check predictions (in transformed space)
+        if self.data.transform_method is not None:
+            counterfactual_predictions = self.ml_model.predict(df_counterfactual_transformed.values)
+        else:
+            counterfactual_predictions = self.ml_model.predict(best_X_all_features)
+
+        target_class = 1 - factual_class
+        n_correct = np.sum(counterfactual_predictions == target_class)
+        n_total = len(counterfactual_predictions)
+
+        if not silent:
+            print("\n" + "="*80)
+            print("DEBUG: Counterfactual Prediction Verification (transformed space)")
+            print("="*80)
+            print(f"Target class: {target_class}")
+            print(f"Counterfactual predictions: {counterfactual_predictions}")
+            print(f"Successfully achieved target: {n_correct}/{n_total} ({100*n_correct/n_total:.1f}%)")
+            if n_correct < n_total:
+                print(f"WARNING: {n_total - n_correct} samples did not achieve target prediction!")
+            print()
+            print("Note: These predictions are verified in transformed space (where model was trained)")
+            print()
+
+        # DEBUG: Print transformed data before inverse transform
+        if not silent:
+            print("\n" + "="*80)
+            print("DEBUG: Counterfactual BEFORE inverse_transform (transformed space)")
+            print("="*80)
+            print(f"Shape: {df_counterfactual_transformed.shape}")
+            print(f"Columns: {df_counterfactual_transformed.columns.tolist()}")
+            print(df_counterfactual_transformed)
+            print()
+
         # Inverse transform if needed
         if self.data.transform_method is not None:
             df_counterfactual = self.data._inverse_transform(df_counterfactual_transformed)
+
+            # DEBUG: Print data after inverse transform
+            if not silent:
+                print("\n" + "="*80)
+                print("DEBUG: Counterfactual AFTER inverse_transform (original space)")
+                print("="*80)
+                print(f"Shape: {df_counterfactual.shape}")
+                print(f"Columns: {df_counterfactual.columns.tolist()}")
+                print(df_counterfactual)
+                print()
         else:
             df_counterfactual = df_counterfactual_transformed
-            
+
         if SHUFFLE_COUNTERFACTUAL:
             df_counterfactual = df_counterfactual.sample(frac=1).reset_index(drop=True)
 
         # Prepare factual with target column - get directly from COLAData
         factual_df = self.data.get_factual_all()
-        
+
+        # Convert numerical features to int
+        if self.data.numerical_features is not None:
+            for num_feature in self.data.numerical_features:
+                if num_feature in df_counterfactual.columns:
+                    # First convert to numeric (handles object dtype from inverse_transform)
+                    df_counterfactual[num_feature] = pd.to_numeric(df_counterfactual[num_feature], errors='coerce')
+                    df_counterfactual[num_feature] = df_counterfactual[num_feature].round().astype(int)
+
         # Prepare counterfactual with target column
-        counterfactual_target_value = 1 - factual_class
+        # Use the predictions from transformed space (counterfactual_predictions calculated earlier)
         counterfactual_df = df_counterfactual.copy()
-        counterfactual_df[self.target_name] = counterfactual_target_value
-        
+        counterfactual_df[self.target_name] = counterfactual_predictions
+
         # Ensure column order matches factual (target column at the end)
         all_columns = factual_df.columns.tolist()
         counterfactual_df = counterfactual_df[all_columns]
 
+        # SUMMARY: Report final counterfactual predictions
+        if not silent:
+            print("\n" + "="*80)
+            print("SUMMARY: Final Counterfactual DataFrame")
+            print("="*80)
+            print(f"Target class (desired): {target_class}")
+            print(f"Counterfactual Risk column (model predictions): {counterfactual_predictions}")
+            n_match = np.sum(counterfactual_predictions == target_class)
+            print(f"Samples achieving target: {n_match}/{len(counterfactual_predictions)} ({100*n_match/len(counterfactual_predictions):.1f}%)")
+            print("="*80)
+            print()
+
         return factual_df, counterfactual_df
-
-
-class WassersteinDivergence:
-    def __init__(self, reg=1):
-        self.nu = None
-        self.reg = reg
-
-    def distance(self, y_s: torch.tensor, y_t: torch.tensor, delta):
-        # Validate delta
-        if delta < 0 or delta > 0.5:
-            raise ValueError("Delta should be between 0 and 0.5")
-
-        y_s = y_s.squeeze()
-        y_t = y_t.squeeze()
-
-        # Calculate quantiles
-        lower_quantile_s = torch.quantile(y_s, delta)
-        upper_quantile_s = torch.quantile(y_s, 1 - delta)
-        lower_quantile_t = torch.quantile(y_t, delta)
-        upper_quantile_t = torch.quantile(y_t, 1 - delta)
-
-        # Indices in the original tensors that correspond to the filtered values
-        indices_s = torch.where((y_s >= lower_quantile_s) & (y_s <= upper_quantile_s))[
-            0
-        ]
-        indices_t = torch.where((y_t >= lower_quantile_t) & (y_t <= upper_quantile_t))[
-            0
-        ]
-
-        # Create a meshgrid to identify the locations in self.nu to be updated
-        indices_s_grid, indices_t_grid = torch.meshgrid(
-            indices_s, indices_t, indexing="ij"
-        )
-
-        # Filter data points
-        y_s_filtered = y_s[indices_s]
-        y_t_filtered = y_t[indices_t]
-
-        proj_y_s_dist_mass = torch.ones(len(y_s_filtered)) / len(y_s_filtered)
-        proj_y_t_dist_mass = torch.ones(len(y_t_filtered)) / len(y_t_filtered)
-
-        trimmed_M_y = ot.dist(
-            y_s_filtered.reshape(y_s_filtered.shape[0], 1),
-            y_t_filtered.reshape(y_t_filtered.shape[0], 1),
-            metric="sqeuclidean",
-        ).to("cpu")
-
-        trimmed_nu = ot.emd(proj_y_s_dist_mass, proj_y_t_dist_mass, trimmed_M_y)
-        # trimmed_nu = ot.bregman.sinkhorn(
-        #     proj_y_s_dist_mass, proj_y_t_dist_mass, M_y, reg=self.reg
-        # )
-        # trimmed_nu = torch.diag(torch.ones(len(y_s)))
-        dist = torch.sum(trimmed_nu * trimmed_M_y) * (1 / (1 - 2 * delta))
-
-        self.nu = torch.zeros(len(y_s), len(y_t))
-
-        # Place the values of trimmed_nu in the correct positions in self.nu
-        self.nu[indices_s_grid, indices_t_grid] = trimmed_nu
-
-        return dist, self.nu
-
-    def distance_interval(
-        self,
-        y_s: torch.tensor,
-        y_t: torch.tensor,
-        delta: float,
-        alpha: Optional[float] = 0.05,
-        bootstrap=True,
-    ):
-        if bootstrap:
-            return bootstrap_1d(
-                y_s.detach().numpy(), y_t.detach().numpy(), delta=delta, alpha=alpha
-            )
-        else:
-            return exact_1d(
-                y_s.detach().numpy(), y_t.detach().numpy(), delta=delta, alpha=alpha
-            )
-
-
-class SlicedWassersteinDivergence:
-    def __init__(self, dim: int, n_proj: int, reg=1):
-        self.dim = dim
-        self.n_proj = n_proj
-        # self.thetas = np.random.randn(n_proj, dim)
-        # self.thetas /= np.linalg.norm(self.thetas, axis=1)[:, None]
-
-        # sample from the unit sphere
-        self.thetas = np.random.multivariate_normal(
-            np.repeat(0, dim), np.identity(dim), size=n_proj
-        )
-        self.thetas = np.apply_along_axis(
-            lambda x: x / np.linalg.norm(x), 1, self.thetas
-        )
-
-        self.wd = WassersteinDivergence()
-
-        self.reg = reg
-
-        self.mu_list = []
-
-    def distance(self, X_s: torch.tensor, X_t: torch.tensor, delta):
-        """
-        Compute the sliced Wasserstein distance between X_s and X_t
-
-        Parameters:
-        X_s : np.ndarray, shape (n_samples_a, dim)
-            samples in the source domain
-        X_t : np.ndarray, shape (n_samples_b, dim)
-            samples in the target domain
-        metric : str, optional
-            metric to be used for Wasserstein-1 distance computation
-
-        Returns:
-        swd : float
-            Sliced Wasserstein Distance between X_s and X_t
-        """
-
-        self.mu_list = []
-        dist = 0
-        for theta in self.thetas:
-            # Project data onto the vector theta
-            theta = torch.from_numpy(theta).float()
-            proj_X_s = X_s.to("cpu") @ theta
-            proj_X_t = X_t.to("cpu") @ theta
-
-            dist_wd, mu = self.wd.distance(proj_X_s, proj_X_t, delta)
-
-            self.mu_list.append(mu)
-
-            dist += dist_wd
-
-        return dist / self.n_proj, self.mu_list
-
-    def distance_interval(
-        self,
-        X_s: torch.tensor,
-        X_t: torch.tensor,
-        delta: float,
-        alpha: Optional[float] = 0.05,
-        bootstrap=True,
-    ):
-        if bootstrap:
-            return bootstrap_sw(X_s, X_t, delta=delta, alpha=alpha, swd=self)
-        else:
-            N = len(self.thetas)
-            low = []
-            up = []
-            for theta in self.thetas:
-                # Project data onto the vector theta
-                theta = torch.from_numpy(theta).float()
-                proj_X_s = X_s.to("cpu") @ theta
-                proj_X_t = X_t.to("cpu") @ theta
-
-                l, u = self.wd.distance_interval(
-                    proj_X_s, proj_X_t, delta=delta, alpha=alpha / N
-                )
-
-                low.append(np.power(l, 2))
-                up.append(np.power(u, 2))
-
-            left = np.power(np.mean(low), 1 / 2)
-            right = np.power(np.mean(up), 1 / 2)
-
-            return left, right
 
 
 class DistributionalCounterfactualExplainer:
@@ -591,6 +524,15 @@ class DistributionalCounterfactualExplainer:
 
         # Perform an optimization step
         self.optimizer.step()
+
+        # 关键修复：将未优化的列重置回原始值
+        # 只有 explain_indices 的列应该被修改，其他列保持不变
+        all_indices = set(range(self.X.shape[1]))
+        unchanged_indices = list(all_indices - set(self.explain_indices))
+
+        if len(unchanged_indices) > 0:
+            with torch.no_grad():
+                self.X[:, unchanged_indices] = self.X_prime[:, unchanged_indices]
 
         # Update the Q value, X_all, and y by the newly optimized X
         self._update_Q(mu_list=self.swd.mu_list, nu=self.wd.nu, eta=eta)
@@ -808,6 +750,170 @@ class DistributionalCounterfactualExplainer:
         else:
             raise NotImplementedError
 
+
+
+class WassersteinDivergence:
+    def __init__(self, reg=1):
+        self.nu = None
+        self.reg = reg
+
+    def distance(self, y_s: torch.tensor, y_t: torch.tensor, delta):
+        # Validate delta
+        if delta < 0 or delta > 0.5:
+            raise ValueError("Delta should be between 0 and 0.5")
+
+        y_s = y_s.squeeze()
+        y_t = y_t.squeeze()
+
+        # Calculate quantiles
+        lower_quantile_s = torch.quantile(y_s, delta)
+        upper_quantile_s = torch.quantile(y_s, 1 - delta)
+        lower_quantile_t = torch.quantile(y_t, delta)
+        upper_quantile_t = torch.quantile(y_t, 1 - delta)
+
+        # Indices in the original tensors that correspond to the filtered values
+        indices_s = torch.where((y_s >= lower_quantile_s) & (y_s <= upper_quantile_s))[
+            0
+        ]
+        indices_t = torch.where((y_t >= lower_quantile_t) & (y_t <= upper_quantile_t))[
+            0
+        ]
+
+        # Create a meshgrid to identify the locations in self.nu to be updated
+        indices_s_grid, indices_t_grid = torch.meshgrid(
+            indices_s, indices_t, indexing="ij"
+        )
+
+        # Filter data points
+        y_s_filtered = y_s[indices_s]
+        y_t_filtered = y_t[indices_t]
+
+        proj_y_s_dist_mass = torch.ones(len(y_s_filtered)) / len(y_s_filtered)
+        proj_y_t_dist_mass = torch.ones(len(y_t_filtered)) / len(y_t_filtered)
+
+        trimmed_M_y = ot.dist(
+            y_s_filtered.reshape(y_s_filtered.shape[0], 1),
+            y_t_filtered.reshape(y_t_filtered.shape[0], 1),
+            metric="sqeuclidean",
+        ).to("cpu")
+
+        trimmed_nu = ot.emd(proj_y_s_dist_mass, proj_y_t_dist_mass, trimmed_M_y)
+        # trimmed_nu = ot.bregman.sinkhorn(
+        #     proj_y_s_dist_mass, proj_y_t_dist_mass, M_y, reg=self.reg
+        # )
+        # trimmed_nu = torch.diag(torch.ones(len(y_s)))
+        dist = torch.sum(trimmed_nu * trimmed_M_y) * (1 / (1 - 2 * delta))
+
+        self.nu = torch.zeros(len(y_s), len(y_t))
+
+        # Place the values of trimmed_nu in the correct positions in self.nu
+        self.nu[indices_s_grid, indices_t_grid] = trimmed_nu
+
+        return dist, self.nu
+
+    def distance_interval(
+        self,
+        y_s: torch.tensor,
+        y_t: torch.tensor,
+        delta: float,
+        alpha: Optional[float] = 0.05,
+        bootstrap=True,
+    ):
+        if bootstrap:
+            return bootstrap_1d(
+                y_s.detach().numpy(), y_t.detach().numpy(), delta=delta, alpha=alpha
+            )
+        else:
+            return exact_1d(
+                y_s.detach().numpy(), y_t.detach().numpy(), delta=delta, alpha=alpha
+            )
+
+
+class SlicedWassersteinDivergence:
+    def __init__(self, dim: int, n_proj: int, reg=1):
+        self.dim = dim
+        self.n_proj = n_proj
+        # self.thetas = np.random.randn(n_proj, dim)
+        # self.thetas /= np.linalg.norm(self.thetas, axis=1)[:, None]
+
+        # sample from the unit sphere
+        self.thetas = np.random.multivariate_normal(
+            np.repeat(0, dim), np.identity(dim), size=n_proj
+        )
+        self.thetas = np.apply_along_axis(
+            lambda x: x / np.linalg.norm(x), 1, self.thetas
+        )
+
+        self.wd = WassersteinDivergence()
+
+        self.reg = reg
+
+        self.mu_list = []
+
+    def distance(self, X_s: torch.tensor, X_t: torch.tensor, delta):
+        """
+        Compute the sliced Wasserstein distance between X_s and X_t
+
+        Parameters:
+        X_s : np.ndarray, shape (n_samples_a, dim)
+            samples in the source domain
+        X_t : np.ndarray, shape (n_samples_b, dim)
+            samples in the target domain
+        metric : str, optional
+            metric to be used for Wasserstein-1 distance computation
+
+        Returns:
+        swd : float
+            Sliced Wasserstein Distance between X_s and X_t
+        """
+
+        self.mu_list = []
+        dist = 0
+        for theta in self.thetas:
+            # Project data onto the vector theta
+            theta = torch.from_numpy(theta).float()
+            proj_X_s = X_s.to("cpu") @ theta
+            proj_X_t = X_t.to("cpu") @ theta
+
+            dist_wd, mu = self.wd.distance(proj_X_s, proj_X_t, delta)
+
+            self.mu_list.append(mu)
+
+            dist += dist_wd
+
+        return dist / self.n_proj, self.mu_list
+
+    def distance_interval(
+        self,
+        X_s: torch.tensor,
+        X_t: torch.tensor,
+        delta: float,
+        alpha: Optional[float] = 0.05,
+        bootstrap=True,
+    ):
+        if bootstrap:
+            return bootstrap_sw(X_s, X_t, delta=delta, alpha=alpha, swd=self)
+        else:
+            N = len(self.thetas)
+            low = []
+            up = []
+            for theta in self.thetas:
+                # Project data onto the vector theta
+                theta = torch.from_numpy(theta).float()
+                proj_X_s = X_s.to("cpu") @ theta
+                proj_X_t = X_t.to("cpu") @ theta
+
+                l, u = self.wd.distance_interval(
+                    proj_X_s, proj_X_t, delta=delta, alpha=alpha / N
+                )
+
+                low.append(np.power(l, 2))
+                up.append(np.power(u, 2))
+
+            left = np.power(np.mean(low), 1 / 2)
+            right = np.power(np.mean(up), 1 / 2)
+
+            return left, right
 
 def bootstrap_1d(x, y, delta, alpha, r=2, B=200):
     x = torch.tensor(x, dtype=torch.float32).squeeze()
