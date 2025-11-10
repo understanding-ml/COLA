@@ -23,7 +23,7 @@ and ensuring comparable costs. Besides, some CE algorithms assume differentiable
 
 What is COLA?
 ----------------------------
-.. image:: https://raw.githubusercontent.com/understanding-ml/COLA/main/docs/images/problem.png
+.. image:: https://raw.githubusercontent.com/understanding-ml/COLA/COLA-4-MVP/docs/images/problem.png
   :width: 800
   :alt: Problem description
   :align: center
@@ -223,17 +223,17 @@ For complete visualization options, see the full documentation.
     display(ce_style, ace_style)  # display the highlighted dataframes
     # ce_style.to_html('final.html') # save to html file
 
-.. image:: https://raw.githubusercontent.com/understanding-ml/COLA/main/docs/images/highlight_changed_positions.png
+.. image:: https://raw.githubusercontent.com/understanding-ml/COLA/COLA-4-MVP/docs/images/highlight_changed_positions.png
     :width: 300
     :alt: highlight_changes
 
 .. code:: python
-    
+
     # Heatmap of Change Direction(increase or decrease)
     sparsifier.heatmap_direction(save_path='./results', save_mode='combined',show_axis_labels=False)
 
-    
-.. image:: https://raw.githubusercontent.com/understanding-ml/COLA/main/docs/images/combined_direction_heatmap.png
+
+.. image:: https://raw.githubusercontent.com/understanding-ml/COLA/COLA-4-MVP/docs/images/combined_direction_heatmap.png
     :width: 300
     :alt: heatmap_direction
 
@@ -242,7 +242,7 @@ For complete visualization options, see the full documentation.
     # Actions required to flip the target per instance: refined counterfactuals vs. original counterfactuals
     fig = sparsifier.stacked_bar_chart(save_path='./results')
 
-.. image:: https://raw.githubusercontent.com/understanding-ml/COLA/main/docs/images/stacked_bar_chart.png
+.. image:: https://raw.githubusercontent.com/understanding-ml/COLA/COLA-4-MVP/docs/images/stacked_bar_chart.png
     :width: 300
     :alt: stacked_bar_chart
 
