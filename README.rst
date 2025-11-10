@@ -1,4 +1,14 @@
-|arXiv|_   |MITlicense|
+.. image:: https://raw.githubusercontent.com/understanding-ml/COLA/COLA-4-MVP/docs/images/logo_cola.png
+   :width: 400
+   :alt: COLA Logo
+   :align: center
+
+|
+
+COunterfactual explanations with Limited Actions (COLA)
+======================================================================
+
+|arXiv|_   |MITlicense|_   |PyPI|_   |Python|_
 
 .. |arXiv| image:: https://img.shields.io/badge/arXiv-2410.05419-B31B1B.svg
 .. _arXiv: https://arxiv.org/pdf/2410.05419
@@ -6,9 +16,13 @@
 .. |MITlicense| image:: https://img.shields.io/badge/License-MIT-blue.svg
 .. _MITlicense: https://opensource.org/licenses/MIT
 
+.. |PyPI| image:: https://img.shields.io/pypi/v/xai-cola.svg
+.. _PyPI: https://pypi.org/project/xai-cola/
 
-COunterfactual explanations with Limited Actions (COLA)
-======================================================================
+.. |Python| image:: https://img.shields.io/badge/python-3.8+-blue.svg
+.. _Python: https://www.python.org/downloads/
+
+|
   
 Explainable Artificial Intelligence (XAI) is essential for making artificial intelligence systems transparent and trustworthy (`Arrieta et al., 2020 <https://www.sciencedirect.com/science/article/pii/S1566253519308103?casa_token=tMxtv_87MG0AAAAA:_f_pbOfKiVGSTKWC9mN6dxKyXYuO6FiE4-OWoUubefLcRe6JDOILQlo0aqPtyuEU5j9hoPzv>`_). 
 Within this area, feature attributions (FA) methods, such as Shapley values (`Sundararajan & Najmi, 2020 <https://proceedings.mlr.press/v119/sundararajan20b.html>`_; `Lundberg & Lee, 2017 <https://www.planchet.net/EXT/ISFA/1226.nsf/769998e0a65ea348c1257052003eb94f/02b26cfa6ecc8cd3c12583d9006de8c2/$FILE/7062-a-unified-approach-to-interpreting-model-predictions.pdf>`_), determine how much each input feature contributes to a machine learning (ML) model's output. 
