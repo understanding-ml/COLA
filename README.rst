@@ -224,7 +224,7 @@ For complete visualization options, see the full documentation.
     # ce_style.to_html('final.html') # save to html file
 
 .. image:: https://raw.githubusercontent.com/understanding-ml/COLA/COLA-4-MVP/docs/images/highlight_changed_positions.png
-    :width: 300
+    :width: 600
     :alt: highlight_changes
 
 .. code:: python
@@ -234,7 +234,7 @@ For complete visualization options, see the full documentation.
 
 
 .. image:: https://raw.githubusercontent.com/understanding-ml/COLA/COLA-4-MVP/docs/images/combined_direction_heatmap.png
-    :width: 300
+    :width: 600
     :alt: heatmap_direction
 
 .. code:: python
@@ -243,7 +243,7 @@ For complete visualization options, see the full documentation.
     fig = sparsifier.stacked_bar_chart(save_path='./results')
 
 .. image:: https://raw.githubusercontent.com/understanding-ml/COLA/COLA-4-MVP/docs/images/stacked_bar_chart.png
-    :width: 300
+    :width: 600
     :alt: stacked_bar_chart
 
 
