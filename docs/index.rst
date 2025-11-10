@@ -122,7 +122,6 @@ This documentation is organized into several sections:
 .. toctree::
    :maxdepth: 2
    :caption: Getting Started
-   :hidden:
 
    installation
    quickstart
@@ -131,7 +130,6 @@ This documentation is organized into several sections:
 .. toctree::
    :maxdepth: 2
    :caption: User Guide
-   :hidden:
 
    user_guide/data_interface
    user_guide/models
@@ -142,7 +140,6 @@ This documentation is organized into several sections:
 .. toctree::
    :maxdepth: 2
    :caption: API Reference
-   :hidden:
 
    api/cola
    api/data
@@ -154,7 +151,6 @@ This documentation is organized into several sections:
 .. toctree::
    :maxdepth: 1
    :caption: Additional Resources
-   :hidden:
 
    faq
    contributing
