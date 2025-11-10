@@ -23,8 +23,9 @@ class GermanCreditDataset:
         return self.df.copy()
 
     def get_Xy(self):
+        df_y = self.df[self.target_name].copy()
         df_X = self.df.drop(self.target_name, axis=1).copy()
-        df_y = self.target
+        
 
         return df_X, df_y
 
@@ -82,10 +83,21 @@ class GermanCreditDataset:
         self.df = pd.read_csv(os.path.join(self.data_path, self.data_filename))
 
     def _preprocessing(self):
-        self.target = self.df[self.target_name].replace({"good": 0, "bad": 1}).infer_objects(copy=False)
-        self.df[self.target_name] = self.target
+        # 1) 先把目标映射到数值（可能会产生 NaN：比如既不是 "good" 也不是 "bad" 的脏值）
+        self.df[self.target_name] = (
+            self.df[self.target_name]
+              .replace({"good": 0, "bad": 1})
+              .infer_objects(copy=False)
+        )
 
-        self._label_encoding()
+        # 2) 统一删除包含 NaN 的任何行（含特征或目标列）
+        before = len(self.df)
+        self.df = self.df.dropna(axis=0, how='any').reset_index(drop=True)
+        after = len(self.df)
+        print(f"[INFO] Dropped rows with NaN: {before - after} (kept {after})")
+
+        # 3) 若你不再需要 label encoding/中位数填充，就不要再调用 _label_encoding()
+        # self._label_encoding()  # <-- 保持注释，避免再次引入填充
 
     def _label_encoding(self):
         # Initialize a label encoder
