@@ -33,10 +33,11 @@ Why COLA?
 
 Traditional counterfactual explainers often produce explanations that require changing many features. COLA refines these explanations to be more actionable:
 
-- ✅ **30-70% fewer actions** compared to raw counterfactuals
-- ✅ **Works with any ML model** (sklearn, PyTorch, TensorFlow)
-- ✅ **Compatible with various CF explainers** (DiCE, DisCount, Alibi, etc.)
-- ✅ **Theoretically grounded** - based on joint-distribution-informed Shapley values
+- ✅ **30-50% fewer actions** compared to raw counterfactuals
+- ✅ **Works with different ML models** (sklearn, PyTorch)
+- ✅ **Built-in Counterfactual explainers** (DiCE, DisCount)
+- ✅ **Compatible with all generated counterfactuals** (in DataFrame format)
+- ✅ **Theoretically grounded** - based on joint-distribution-informed Shapley values (see our `paper <https://arxiv.org/pdf/2410.05419>`_)
 - ✅ **Easy to use** - simple API with sensible defaults
 - ✅ **Rich visualizations** - heatmaps, charts, highlighted tables
 
