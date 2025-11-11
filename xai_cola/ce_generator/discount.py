@@ -91,23 +91,23 @@ class DisCount(CounterFactualExplainer):
         factual_class : int, default=1
             The class of the factual data (Normally, we set the factual_class as 1
             as the prediction of factual data is 1. And we hope the prediction of counterfactual data is 0)
-        lr : float, default=1e-1
+        lr : float, default=5e-2
             Learning rate
         n_proj : int, default=10
             Number of projections
-        delta : float, default=0.05
+        delta : float, default=0.15
             Trimming constant
         U_1 : float, default=0.4
             Upper bound for the Wasserstein distance
-        U_2 : float, default=0.3
+        U_2 : float, default=0.02
             Upper bound for the sliced Wasserstein distance
-        l : float, default=0.2
+        l : float, default=0.15
             Lower bound for the interval narrowing
         r : float, default=1
             Upper bound for the interval narrowing
-        max_iter : int, default=15
+        max_iter : int, default=100
             Maximum number of iterations
-        tau : float, default=1e2
+        tau : float, default=1e1
             Step size (can't be too large or too small)
         silent : bool, default=False
             Whether to print the log information
