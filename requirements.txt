@@ -24,6 +24,9 @@ torch>=2.3.0
 # Progress Bar
 tqdm>=4.67.0
 
+# Interactive Python
+ipython>=8.0.0
+
 # Optional dependencies - install separately if needed:
 # Jupyter: pip install xai-cola[jupyter]
 # All optional: pip install xai-cola[all]
