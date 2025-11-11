@@ -13,6 +13,20 @@ COLAData Class
    :show-inheritance:
    :special-members: __init__
 
+   Data container for factual and counterfactual explanations.
+
+   COLAData manages both factual (original) and counterfactual data, handles
+   preprocessing transformations, and provides convenient access methods for
+   features, labels, and metadata.
+
+   **Key Responsibilities:**
+
+   - Store and manage factual and counterfactual data
+   - Track feature types (numerical vs categorical)
+   - Handle data transformations and inverse transformations
+   - Provide consistent data access interface
+   - Support both DataFrame and NumPy array inputs
+
    .. rubric:: Methods
 
    .. autosummary::
@@ -20,9 +34,26 @@ COLAData Class
 
       ~COLAData.__init__
       ~COLAData.add_counterfactuals
+      ~COLAData.get_all_columns
+      ~COLAData.get_feature_columns
+      ~COLAData.get_label_column
+      ~COLAData.get_numerical_features
+      ~COLAData.get_categorical_features
+      ~COLAData.get_factual_all
+      ~COLAData.get_factual_features
+      ~COLAData.get_factual_labels
+      ~COLAData.get_counterfactual_all
+      ~COLAData.get_counterfactual_features
+      ~COLAData.get_counterfactual_labels
+      ~COLAData.get_transformed_factual_features
+      ~COLAData.get_transformed_counterfactual_features
+      ~COLAData.to_numpy_factual_features
+      ~COLAData.to_numpy_counterfactual_features
+      ~COLAData.has_counterfactual
+      ~COLAData.has_transformed_data
+      ~COLAData.get_feature_count
+      ~COLAData.get_sample_count
       ~COLAData.summary
-      ~COLAData.get_factual_data
-      ~COLAData.get_counterfactual_data
 
 Constructor
 -----------
@@ -34,17 +65,99 @@ Adding Counterfactuals
 
 .. automethod:: COLAData.add_counterfactuals
 
-Data Access
------------
+Column Information Methods
+--------------------------
 
-.. automethod:: COLAData.get_factual_data
+.. automethod:: COLAData.get_all_columns
 
-.. automethod:: COLAData.get_counterfactual_data
+   Get all column names including the label column.
 
-Utility Methods
----------------
+.. automethod:: COLAData.get_feature_columns
+
+   Get feature column names (excludes label).
+
+.. automethod:: COLAData.get_label_column
+
+   Get the label column name.
+
+.. automethod:: COLAData.get_numerical_features
+
+   Get list of numerical feature names.
+
+.. automethod:: COLAData.get_categorical_features
+
+   Get list of categorical feature names.
+
+Factual Data Access Methods
+----------------------------
+
+.. automethod:: COLAData.get_factual_all
+
+   Get complete factual DataFrame (features + label).
+
+.. automethod:: COLAData.get_factual_features
+
+   Get factual features only (excludes label).
+
+.. automethod:: COLAData.get_factual_labels
+
+   Get factual labels as pandas Series.
+
+.. automethod:: COLAData.get_transformed_factual_features
+
+   Get preprocessed/transformed factual features.
+   Returns None if no preprocessor is set.
+
+.. automethod:: COLAData.to_numpy_factual_features
+
+   Get factual features as NumPy array.
+
+Counterfactual Data Access Methods
+-----------------------------------
+
+.. automethod:: COLAData.get_counterfactual_all
+
+   Get complete counterfactual DataFrame (features + label).
+
+.. automethod:: COLAData.get_counterfactual_features
+
+   Get counterfactual features only (excludes label).
+
+.. automethod:: COLAData.get_counterfactual_labels
+
+   Get counterfactual labels as pandas Series.
+
+.. automethod:: COLAData.get_transformed_counterfactual_features
+
+   Get preprocessed/transformed counterfactual features.
+   Returns None if no preprocessor is set.
+
+.. automethod:: COLAData.to_numpy_counterfactual_features
+
+   Get counterfactual features as NumPy array.
+
+Helper Methods
+--------------
+
+.. automethod:: COLAData.has_counterfactual
+
+   Check if counterfactual data has been added.
+
+.. automethod:: COLAData.has_transformed_data
+
+   Check if preprocessor/transformer is available.
+
+.. automethod:: COLAData.get_feature_count
+
+   Get number of features (excludes label).
+
+.. automethod:: COLAData.get_sample_count
+
+   Get number of samples in factual data.
 
 .. automethod:: COLAData.summary
+
+   Print comprehensive data summary.
 
 Attributes
 ==========

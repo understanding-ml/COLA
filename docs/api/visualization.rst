@@ -4,14 +4,57 @@ Visualization API
 
 .. currentmodule:: xai_cola.ce_sparsifier.visualization
 
+Overview
+========
+
+COLA provides comprehensive visualization functions for analyzing and presenting
+counterfactual refinement results. All functions are stateless and can be used
+independently or through the COLA class methods.
+
+**Available Visualizations:**
+
+1. **Highlighted DataFrames** - Interactive tables with color-coded changes
+2. **Direction Heatmaps** - Show which features increased/decreased
+3. **Binary Heatmaps** - Show which features changed (yes/no)
+4. **Stacked Bar Charts** - Compare action counts before/after refinement
+5. **Diversity Analysis** - Explore alternative minimal feature combinations
+
 Highlighted DataFrames
 ======================
 
+Functions for creating styled pandas DataFrames with highlighted changes.
+
 .. autofunction:: highlight_changes_final
+
+   Generate highlighted DataFrames showing only final values.
+
+   **Color Coding:**
+
+   - Blue background: Feature value increased
+   - Orange background: Feature value decreased
+   - White background: Unchanged
+
+   **Returns:** Tuple of (factual_styled, ce_styled, ace_styled)
+
+   **Best for:** Jupyter notebooks, HTML reports
 
 .. autofunction:: highlight_changes_comparison
 
+   Generate highlighted DataFrames with "old → new" format.
+
+   Shows both original and new values for changed features.
+
+   **Format:** ``25 → 30`` for numerical, ``No → Yes`` for categorical
+
+   **Returns:** Tuple of (factual_styled, ce_styled, ace_styled)
+
+   **Best for:** Detailed change analysis, presentations
+
 .. autofunction:: highlight_differences
+
+   Low-level helper function for highlighting differences.
+
+   Used internally by other highlight functions.
 
 Heatmaps
 ========
@@ -21,32 +64,174 @@ Direction Heatmap
 
 .. autofunction:: generate_direction_heatmap
 
+   Generate heatmap showing direction of feature changes.
+
+   **Parameters:**
+
+   - **factual_df** (pd.DataFrame): Factual data
+   - **cf_df** (pd.DataFrame): Original counterfactual data
+   - **ace_df** (pd.DataFrame): Refined counterfactual data
+   - **label_column** (str): Name of label column
+   - **numerical_features** (List[str], optional): List of numerical features
+   - **save_path** (str, optional): Directory to save figures
+   - **save_mode** (str): "combined", "separate", or "both"
+   - **show_axis_labels** (bool): Whether to show feature/instance names
+   - **figsize** (Tuple[int, int], optional): Figure size
+   - **dpi** (int, optional): Resolution
+
+   **Color Coding:**
+
+   - Light blue (#56B4E9): Numerical feature increased
+   - Light cyan (#7FCDCD): Numerical feature decreased
+   - Peru (#CD853F): Categorical feature changed
+   - Black: Label column flip
+   - Light grey: Unchanged
+
+   **Returns:** Tuple[Figure, Figure] or Figure depending on save_mode
+
 .. autofunction:: heatmap_direction_changes
+
+   Helper function for computing direction changes.
+
+   Used internally by generate_direction_heatmap.
 
 Binary Heatmap
 --------------
 
 .. autofunction:: generate_binary_heatmap
 
+   Generate binary heatmap showing which features changed.
+
+   **Parameters:**
+
+   - **factual_df** (pd.DataFrame): Factual data
+   - **cf_df** (pd.DataFrame): Original counterfactual data
+   - **ace_df** (pd.DataFrame): Refined counterfactual data
+   - **label_column** (str): Name of label column
+   - **save_path** (str, optional): Directory to save figures
+   - **save_mode** (str): "combined", "separate", or "both"
+   - **show_axis_labels** (bool): Whether to show feature/instance names
+   - **figsize** (Tuple[int, int], optional): Figure size
+   - **dpi** (int, optional): Resolution
+
+   **Color Coding:**
+
+   - Light grey: Unchanged
+   - Red: Changed
+   - Dark blue: Label column flip
+
+   **Returns:** Tuple[Figure, Figure] or Figure depending on save_mode
+
 .. autofunction:: heatmap_binary_changes
+
+   Helper function for computing binary changes.
+
+   Used internally by generate_binary_heatmap.
 
 Stacked Bar Chart
 =================
 
 .. autofunction:: generate_stacked_bar_chart
 
+   Generate horizontal stacked bar chart comparing feature changes.
+
+   **Parameters:**
+
+   - **factual_df** (pd.DataFrame): Factual data
+   - **cf_df** (pd.DataFrame): Original counterfactual data
+   - **ace_df** (pd.DataFrame): Refined counterfactual data
+   - **label_column** (str): Name of label column
+   - **save_path** (str, optional): Directory to save figure
+   - **refined_color** (str): Color for refined bars (default: "#D9F2D0" green)
+   - **counterfactual_color** (str): Color for original bars (default: "#FBE3D6" orange)
+   - **instance_labels** (List[str], optional): Custom instance labels
+   - **figsize** (Tuple[int, int], optional): Figure size
+   - **dpi** (int, optional): Resolution
+
+   **Visual Elements:**
+
+   - Y-axis (rows): Each factual instance
+   - X-axis: Percentage of feature changes
+   - Green bar: Refined counterfactual modifications
+   - Orange bar: Original counterfactual modifications
+
+   **Returns:** matplotlib Figure object
+
 .. autofunction:: create_stacked_bar_chart
+
+   Low-level function for creating stacked bar charts.
+
+   Used internally by generate_stacked_bar_chart.
 
 Diversity Analysis
 ==================
 
 .. autofunction:: generate_diversity_for_all_instances
 
+   Find all minimal feature combinations for all instances.
+
+   **Parameters:**
+
+   - **factual_df** (pd.DataFrame): Factual data
+   - **refined_counterfactual_df** (pd.DataFrame): Refined counterfactual data
+   - **ml_model** (Model): Wrapped ML model
+   - **label_column** (str): Name of label column
+   - **cola_data** (COLAData, optional): Data object for transformations
+   - **max_features** (int, optional): Maximum features to try
+
+   **Algorithm:**
+
+   1. For each instance, enumerate all feature subsets
+   2. Test which subsets can flip the label
+   3. Find minimal subsets (no proper subset also works)
+   4. Return all minimal alternatives
+
+   **Returns:** Tuple of (factual_df, List[styled_diversity_dataframes])
+
 .. autofunction:: generate_diversity_dataframe
+
+   Generate diversity DataFrame for a single instance.
+
+   **Parameters:**
+
+   - **factual_row** (pd.Series): Single factual instance
+   - **refined_counterfactual_row** (pd.Series): Single refined CF
+   - **minimal_combinations** (List[Set[str]]): Minimal feature combinations
+   - **label_column** (str): Label column name
+
+   **Returns:** pd.DataFrame with all minimal alternatives
 
 .. autofunction:: highlight_diversity_changes
 
+   Highlight diversity DataFrame with color coding.
+
+   **Parameters:**
+
+   - **factual_row** (pd.Series): Factual instance
+   - **diversity_df** (pd.DataFrame): Diversity results
+   - **label_column** (str): Label column name
+
+   **Returns:** Styled DataFrame with highlighted changes
+
 .. autofunction:: find_minimal_feature_combinations
+
+   Find minimal feature combinations for single instance.
+
+   **Parameters:**
+
+   - **factual_row** (pd.Series): Single factual instance
+   - **refined_counterfactual_row** (pd.Series): Single refined CF
+   - **ml_model** (Model): Wrapped ML model
+   - **label_column** (str): Label column name
+   - **cola_data** (COLAData, optional): For transformations
+
+   **Algorithm:**
+
+   Uses exhaustive enumeration starting from 1 feature up to all changed features.
+   Ensures true minimality: if changing feature A alone works, combinations
+   like {A, B} are excluded.
+
+   **Returns:** List[Set[str]] of minimal feature combinations
 
 Examples
 ========

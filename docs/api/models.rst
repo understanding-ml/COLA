@@ -13,6 +13,26 @@ Model Class
    :show-inheritance:
    :special-members: __init__
 
+   Universal model interface for COLA supporting multiple ML frameworks.
+
+   Model acts as a unified interface that wraps trained models from different
+   frameworks (scikit-learn, PyTorch, TensorFlow) and provides consistent
+   ``predict()`` and ``predict_proba()`` methods.
+
+   **Supported Backends:**
+
+   - ``"sklearn"`` - Scikit-learn models and Pipelines
+   - ``"pytorch"`` - PyTorch nn.Module models
+   - ``"tensorflow2"`` / ``"tf2"`` - TensorFlow 2.x / Keras models
+   - ``"tensorflow1"`` / ``"tf1"`` - TensorFlow 1.x models
+
+   **Key Features:**
+
+   - Automatic Pipeline detection for sklearn
+   - GPU support for PyTorch models via ``.to(device)``
+   - Handles both raw features and preprocessed data
+   - Consistent interface across all backends
+
    .. rubric:: Methods
 
    .. autosummary::
@@ -21,6 +41,7 @@ Model Class
       ~Model.__init__
       ~Model.predict
       ~Model.predict_proba
+      ~Model.to
 
 Constructor
 -----------
@@ -32,7 +53,50 @@ Prediction Methods
 
 .. automethod:: Model.predict
 
+   Generate class predictions.
+
+   **Parameters:**
+
+   - **X** : Union[np.ndarray, pd.DataFrame] - Input features
+
+   **Returns:**
+
+   - **np.ndarray** - Predicted class labels (shape: (n_samples,))
+
 .. automethod:: Model.predict_proba
+
+   Generate probability predictions.
+
+   **Parameters:**
+
+   - **X** : Union[np.ndarray, pd.DataFrame] - Input features
+
+   **Returns:**
+
+   - **np.ndarray** - Class probabilities (shape: (n_samples, n_classes))
+
+Device Management (PyTorch Only)
+---------------------------------
+
+.. automethod:: Model.to
+
+   Move PyTorch model to specified device.
+
+   **Parameters:**
+
+   - **device** : str - Device name ("cpu" or "cuda")
+
+   **Returns:**
+
+   - **Model** - Self for method chaining
+
+   **Example:**
+
+   .. code-block:: python
+
+       # Move to GPU
+       ml_model = Model(model=torch_model, backend="pytorch")
+       ml_model.to("cuda")
 
 PreprocessorWrapper
 ===================
