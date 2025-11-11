@@ -40,16 +40,11 @@ The most common and recommended approach:
     import pandas as pd
 
     # Prepare your data with a target column
-    df = pd.DataFrame({
-        'Age': [25, 35, 45],
-        'Income': [30000, 50000, 70000],
-        'HasLoan': ['No', 'Yes', 'No'],
-        'Risk': [1, 0, 1]  # Target column
-    })
+    df # dataframe of factual, including label column 'Risk'
 
     # Create COLAData instance
     data = COLAData(
-        factual_data=df,
+        factual_data=df, # pandas dataframe
         label_column='Risk',
         numerical_features=['Age', 'Income']
     )
@@ -62,21 +57,51 @@ Output:
 .. code-block:: text
 
     ========== COLAData Summary ==========
-    Factual data shape: (3, 4)
-    Label column: Risk
-
-    Feature columns (3):
-      - Age
-      - Income
-      - HasLoan
-
-    Numerical features (2): Age, Income
-    Categorical features (1): HasLoan
-
-    Counterfactual data: Not set
+    {'factual_samples': 10,
+    'feature_count': 9,
+    'label_column': 'Risk',
+    'all_columns': ['Age',
+    'Sex',
+    'Job',
+    'Housing',
+    'Saving accounts',
+    'Checking account',
+    'Credit amount',
+    'Duration',
+    'Purpose',
+    'Risk'],
+    'has_counterfactual': True,
+    'has_transform_method': False,
+    'has_transformed_data': False,
+    'counterfactual_samples': None}
     ======================================
 
-Scenario 2: Adding Counterfactuals
+
+Scenario 2: Using NumPy Arrays
+------------------------------
+
+If you're working with NumPy arrays instead of DataFrames:
+
+.. code-block:: python
+
+    import numpy as np
+
+    # Prepare numpy array (must include label column)
+    X  # numpy array of factual, including label column 'Risk'
+    all_columns = ['Age','Sex','Job','Housing','Saving accounts','Checking account','Credit amount','Duration','Purpose','Risk']
+    # MUST provide column names when using numpy
+    data = COLAData(
+        factual_data=X, # numpy array
+        label_column='Risk',
+        column_names=all_columns,
+        numerical_features=['Age', 'Income']
+    )
+
+.. warning::
+    When using NumPy arrays, you **must** provide ``column_names`` that includes the label column.
+
+
+Scenario 3: Adding Counterfactuals after initializing COLAData
 ----------------------------------
 
 After generating counterfactuals using DiCE, DisCount, or another explainer:
@@ -104,39 +129,75 @@ Output:
 .. code-block:: text
 
     ========== COLAData Summary ==========
-    Factual data shape: (3, 4)
-    Counterfactual data shape: (6, 4)  # 3 instances × 2 CFs each
-    Label column: Risk
+    {'factual_samples': 10,
+    'feature_count': 9,
+    'label_column': 'Risk',
+    'all_columns': ['Age',
+    'Sex',
+    'Job',
+    'Housing',
+    'Saving accounts',
+    'Checking account',
+    'Credit amount',
+    'Duration',
+    'Purpose',
+    'Risk'],
+    'has_counterfactual': True,
+    'has_transform_method': False,
+    'has_transformed_data': False,
+    'counterfactual_samples': 20}
     ...
 
-Scenario 3: Using NumPy Arrays
-------------------------------
 
-If you're working with NumPy arrays instead of DataFrames:
+Scenario 4: Adding Counterfactuals when initializing COLAData
+----------------------------------
+
+After generating counterfactuals using DiCE, DisCount, or another explainer:
 
 .. code-block:: python
 
-    import numpy as np
+    from xai_cola.ce_sparsifier.data import COLAData
+    import pandas as pd
 
-    # Prepare numpy array (must include label column)
-    X = np.array([
-        [25, 30000, 0, 1],  # Last column is label
-        [35, 50000, 1, 0],
-        [45, 70000, 0, 1]
-    ])
-
-    # MUST provide column names when using numpy
+    # Prepare your data with a target column
+    df # dataframe of factual, including label column 'Risk'
+    cf_df # dataframe of counterfactuals, including label column 'Risk'
+    # Create COLAData instance
     data = COLAData(
-        factual_data=X,
+        factual_data=df, # pandas dataframe
         label_column='Risk',
-        column_names=['Age', 'Income', 'HasLoan', 'Risk'],
+        counterfactual_data=cf_df, # pandas dataframe of counterfactuals
         numerical_features=['Age', 'Income']
     )
 
-.. warning::
-    When using NumPy arrays, you **must** provide ``column_names`` that includes the label column.
+    # Check the data
+    data.summary()
 
-Scenario 4: With Preprocessing
+Output:
+
+.. code-block:: text
+
+    ========== COLAData Summary ==========
+    {'factual_samples': 10,
+    'feature_count': 9,
+    'label_column': 'Risk',
+    'all_columns': ['Age',
+    'Sex',
+    'Job',
+    'Housing',
+    'Saving accounts',
+    'Checking account',
+    'Credit amount',
+    'Duration',
+    'Purpose',
+    'Risk'],
+    'has_counterfactual': True,
+    'has_transform_method': False,
+    'has_transformed_data': False,
+    'counterfactual_samples': 20}
+    ...
+
+Scenario 5: With Preprocessing
 -------------------------------
 
 Integrate sklearn preprocessors for automatic transformation:
@@ -169,58 +230,6 @@ Integrate sklearn preprocessors for automatic transformation:
 .. note::
     ``transform_method`` and ``preprocessor`` are aliases - use either one.
 
-Advanced Features
-================
-
-Accessing Data
---------------
-
-Get the underlying DataFrames:
-
-.. code-block:: python
-
-    # Get factual data
-    factual_df = data.factual_df
-
-    # Get counterfactual data (if set)
-    cf_df = data.counterfactual_df
-
-    # Get feature columns (excluding label)
-    feature_names = data.feature_columns
-
-    # Get numerical/categorical features
-    num_features = data.numerical_features
-    cat_features = data.categorical_features
-
-Feature Type Inference
-----------------------
-
-If you don't specify ``numerical_features``, COLA will try to infer them:
-
-.. code-block:: python
-
-    # Without specifying numerical_features
-    data = COLAData(
-        factual_data=df,
-        label_column='Risk'
-    )
-
-    # COLA infers based on dtype
-    # int/float → numerical
-    # object/category → categorical
-
-.. warning::
-    Automatic inference may not always be correct. For best results, explicitly specify ``numerical_features``.
-
-Data Validation
----------------
-
-``COLAData`` automatically validates:
-
-1. **Label column exists** in the data
-2. **Column names match** between factual and counterfactual
-3. **Feature types are consistent** across datasets
-4. **Data shapes are compatible** for matching
 
 Common Issues
 =============
@@ -339,64 +348,6 @@ Best Practices
 
 4. **Don't mix preprocessed and raw data** - be consistent
 
-Complete Example
-================
-
-Here's a complete workflow:
-
-.. code-block:: python
-
-    from xai_cola.ce_sparsifier.data import COLAData
-    from xai_cola.ce_generator import DiCE
-    from xai_cola import COLA
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.compose import ColumnTransformer
-    import pandas as pd
-
-    # 1. Load your data
-    df = pd.read_csv('data.csv')
-
-    # 2. Define feature types
-    numerical_features = ['Age', 'Income', 'Duration']
-    categorical_features = ['Gender', 'HasLoan']
-
-    # 3. Create preprocessor (optional)
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ('num', StandardScaler(), numerical_features),
-            ('cat', 'passthrough', categorical_features)
-        ]
-    )
-    preprocessor.fit(df[numerical_features + categorical_features])
-
-    # 4. Create COLAData
-    data = COLAData(
-        factual_data=df,
-        label_column='Risk',
-        numerical_features=numerical_features,
-        preprocessor=preprocessor
-    )
-
-    # 5. Check data
-    data.summary()
-
-    # 6. Generate counterfactuals
-    explainer = DiCE(ml_model=your_model)
-    _, cf = explainer.generate_counterfactuals(
-        data=data,
-        factual_class=1,
-        total_cfs=2
-    )
-
-    # 7. Add counterfactuals
-    data.add_counterfactuals(cf, with_target_column=True)
-
-    # 8. Use with COLA
-    sparsifier = COLA(data=data, ml_model=your_model)
-    sparsifier.set_policy(matcher='ot', attributor='pshap')
-
-    # 9. Get refined counterfactuals
-    refined = sparsifier.refine_counterfactuals(limited_actions=5)
 
 API Reference
 =============

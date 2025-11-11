@@ -5,7 +5,7 @@ Model Interface
 Overview
 ========
 
-The ``Model`` class provides a unified interface for wrapping machine learning models from different frameworks. COLA supports scikit-learn, PyTorch, TensorFlow, and other frameworks through this abstraction layer.
+The ``Model`` class provides a unified interface for wrapping machine learning models from different frameworks. COLA supports scikit-learn and PyTorch through this abstraction layer.
 
 Supported Frameworks
 ====================
@@ -14,9 +14,6 @@ COLA currently supports:
 
 - ✅ **scikit-learn** - All sklearn classifiers
 - ✅ **PyTorch** - Neural network models
-- ✅ **TensorFlow 1.x** - Legacy TensorFlow models
-- ✅ **TensorFlow 2.x / Keras** - Modern TensorFlow/Keras models
-- ✅ **Custom models** - Any model with predict methods
 
 Key Concepts
 ============
@@ -36,10 +33,30 @@ Combine preprocessor and classifier into a single sklearn pipeline:
     from sklearn.preprocessing import StandardScaler
     from sklearn.linear_model import LogisticRegression
 
-    # Create pipeline
+
+    # Step 1: Create the preprocessor
+    # Linear models require feature scaling
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', StandardScaler(), numerical_features),  # Scale numerical features
+            ('cat', OneHotEncoder(drop='first', handle_unknown='ignore'), categorical_features)
+        ],
+        remainder='passthrough'
+    )
+
+    # Step 2: Create the Logistic Regression classifier
+    lr_classifier = LogisticRegression(
+        max_iter=1000,
+        C=1.0,  # Inverse of regularization strength
+        class_weight='balanced',  # Handle class imbalance
+        random_state=42,
+        solver='lbfgs'  # Suitable for small datasets
+    )
+
+    # Step 3: Create the Pipeline
     pipe = Pipeline([
-        ('scaler', StandardScaler()),
-        ('classifier', LogisticRegression())
+        ('preprocessor', preprocessor),
+        ('classifier', lr_classifier)
     ])
 
     # Train on raw data
@@ -57,16 +74,12 @@ If your preprocessor and classifier are separate:
 
     from xai_cola.ce_sparsifier.utils import PreprocessorWrapper
 
-    # Train classifier on preprocessed data
-    X_train_scaled = scaler.fit_transform(X_train)
-    classifier.fit(X_train_scaled, y_train)
+    # Train lr_classifier on preprocessed data
+    X_train_scaled = preprocessor.fit_transform(X_train)
+    lr_classifier.fit(X_train_scaled, y_train)
 
-    # Wrap with PreprocessorWrapper
-    ml_model = PreprocessorWrapper(
-        model=classifier,
-        backend="sklearn",
-        preprocessor=scaler
-    )
+    # input classifier and preprocessor separately
+    ml_model = Model(model=lr_classifier, backend="sklearn", preprocessor=preprocessor)
 
 .. tip::
     Use **Option 1** (pipeline) whenever possible - it's cleaner and less error-prone.
@@ -134,31 +147,8 @@ For neural networks built with PyTorch:
 .. note::
     Your PyTorch model should output raw logits or probabilities. COLA will handle the conversion.
 
-Scenario 3: TensorFlow/Keras Model
------------------------------------
 
-For TensorFlow 2.x / Keras models:
-
-.. code-block:: python
-
-    import tensorflow as tf
-    from xai_cola.ce_sparsifier.models import Model
-
-    # Define Keras model
-    model = tf.keras.Sequential([
-        tf.keras.layers.Dense(64, activation='relu'),
-        tf.keras.layers.Dense(32, activation='relu'),
-        tf.keras.layers.Dense(2, activation='softmax')
-    ])
-
-    # Compile and train
-    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy')
-    model.fit(X_train, y_train, epochs=10)
-
-    # Wrap for COLA
-    ml_model = Model(model=model, backend="TF2")
-
-Scenario 4: Separate Preprocessor
+Scenario 3: Separate Preprocessor
 ----------------------------------
 
 When preprocessor and classifier are not combined:
@@ -205,10 +195,7 @@ COLA uses backend specifications to handle different frameworks:
 +----------------+-------------------------+---------------------------+
 | PyTorch        | ``"pytorch"``           | torch installed           |
 +----------------+-------------------------+---------------------------+
-| TensorFlow 2.x | ``"TF2"``               | tensorflow >= 2.0         |
-+----------------+-------------------------+---------------------------+
-| TensorFlow 1.x | ``"TF1"``               | tensorflow < 2.0          |
-+----------------+-------------------------+---------------------------+
+
 
 Model Requirements
 ------------------
@@ -228,14 +215,6 @@ Your model must support:
         def forward(self, x):
             # Should return logits or probabilities
             return output
-
-**For TensorFlow:**
-
-.. code-block:: python
-
-    model = tf.keras.Sequential([...])
-    # Must be compiled
-    model.compile(...)
 
 Working with Different Data Types
 ----------------------------------
@@ -305,7 +284,7 @@ Example 1: End-to-End with Pipeline
     # ... generate counterfactuals ...
     sparsifier = COLA(data=data, ml_model=ml_model)
 
-Example 2: PyTorch with Custom Preprocessing
+Example 2: PyTorch with Preprocessor
 ---------------------------------------------
 
 .. code-block:: python
@@ -313,7 +292,7 @@ Example 2: PyTorch with Custom Preprocessing
     import torch
     import torch.nn as nn
     from sklearn.preprocessing import StandardScaler
-    from xai_cola.ce_sparsifier.utils import PreprocessorWrapper
+    from xai_cola.ce_sparsifier import Model
 
     # Define PyTorch model
     class Classifier(nn.Module):
@@ -332,15 +311,18 @@ Example 2: PyTorch with Custom Preprocessing
             return self.network(x)
 
     # Prepare data
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
+    preprocessor = ColumnTransformer([
+        ('num', StandardScaler(), numerical),
+        ('cat', OneHotEncoder(drop='first'), categorical)
+    ])
+    X_train_scaled = preprocessor.fit_transform(X_train)
 
     # Train PyTorch model
     model = Classifier(input_dim=X_train_scaled.shape[1])
     # ... training loop ...
 
     # Wrap with preprocessor
-    ml_model = PreprocessorWrapper(
+    ml_model = Model(
         model=model,
         backend="pytorch",
         preprocessor=scaler
@@ -373,15 +355,15 @@ Use ``PreprocessorWrapper`` or a pipeline:
 .. code-block:: python
 
     # ❌ Wrong - passing raw data to model trained on scaled data
-    classifier.fit(scaler.fit_transform(X_train), y_train)
+    classifier.fit(preprocessor.fit_transform(X_train), y_train)
     ml_model = Model(model=classifier, backend="sklearn")
     ml_model.predict(X_test)  # Error! X_test is not scaled
 
-    # ✅ Correct - wrap with preprocessor
-    ml_model = PreprocessorWrapper(
+    # ✅ Correct - input with preprocessor
+    ml_model = Model(
         model=classifier,
         backend="sklearn",
-        preprocessor=scaler
+        preprocessor=preprocessor
     )
     ml_model.predict(X_test)  # Automatically scales X_test
 
@@ -402,12 +384,12 @@ Match backend to framework:
 
 .. code-block:: python
 
-    # ❌ Wrong - TensorFlow model with sklearn backend
+    # ❌ Wrong - Pytorch model with sklearn backend
     keras_model = tf.keras.Sequential([...])
     ml_model = Model(model=keras_model, backend="sklearn")
 
-    # ✅ Correct - use TF2 backend
-    ml_model = Model(model=keras_model, backend="TF2")
+    # ✅ Correct - use pytorch backend
+    ml_model = Model(model=keras_model, backend="pytorch")
 
 Issue 3: Model Not Trained
 ---------------------------
@@ -471,23 +453,10 @@ Best Practices
    .. code-block:: python
 
        # ❌ Bad
-       clf.fit(scaler.transform(X_train), y_train)  # Trained on scaled
+       clf.fit(preprocessor.transform(X_train), y_train)  # Trained on scaled
        ml_model = Model(model=clf, backend="sklearn")
        ml_model.predict(X_test)  # Passed raw data - mismatch!
 
-2. **Don't forget to compile TensorFlow models**
-
-   .. code-block:: python
-
-       # ❌ Bad
-       model = tf.keras.Sequential([...])
-       ml_model = Model(model=model, backend="TF2")  # Not compiled!
-
-       # ✅ Good
-       model.compile(optimizer='adam', loss='...')
-       ml_model = Model(model=model, backend="TF2")
-
-3. **Don't change model after wrapping**
 
 API Reference
 =============
@@ -495,7 +464,6 @@ API Reference
 For complete parameter details, see:
 
 - :class:`~xai_cola.ce_sparsifier.models.Model`
-- :class:`~xai_cola.ce_sparsifier.utils.PreprocessorWrapper`
 
 Next Steps
 ==========

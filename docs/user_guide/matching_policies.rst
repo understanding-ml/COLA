@@ -9,10 +9,10 @@ Matching policies determine how COLA pairs factual instances with counterfactual
 
 COLA provides four matching strategies:
 
-1. **Optimal Transport (OT)** - Globally optimal matching (recommended)
-2. **Exact Class Transition (ECT)** - Fast, deterministic matching
-3. **Soft CEM** - Probabilistic soft matching
-4. **Nearest Neighbor (NN)** - Simple proximity-based matching
+1. **Exact matching (ECT)** - Fast, deterministic matching (recommended)
+2. **Optimal Transport (OT)** - Globally optimal matching (recommended)
+3. **Nearest Neighbor (NN)** - Simple proximity-based matching (recommended)
+4. **Coarsened Exact Matching (CEM)** - Coarsened exact matching
 
 Quick Start
 ===========
@@ -42,7 +42,43 @@ Quick Start
 Matching Strategies
 ===================
 
-1. Optimal Transport (OT)
+1. Exact Matching (ECT)
+--------------------------------
+
+**When to use:**
+
+- You need fast results
+- You have clear class transitions (e.g., 0→1, 1→0)
+- Number of factuals equals number of counterfactuals (n factuals = n counterfactuals)
+- One-to-one matching is desired (creating an n×n identity matrix)
+
+**How it works:**
+
+Matches factual instances to counterfactuals based on exact class transitions. For instance, factuals with class 0 are matched to counterfactuals with class 1.
+
+.. code-block:: python
+
+    sparsifier.set_policy(
+        matcher="ect",
+        attributor="pshap"
+    )
+
+**Advantages:**
+
+- ✅ Very fast
+- ✅ Deterministic results
+- ✅ Simple and interpretable
+- ✅ No hyperparameters
+
+**Disadvantages:**
+
+- ⚠️ May not be globally optimal
+- ⚠️ Requires balanced classes
+- ⚠️ Limited flexibility
+
+**Best for:** Binary classification with similar class sizes.
+
+2. Optimal Transport (OT)
 -------------------------
 
 **When to use:**
@@ -74,78 +110,8 @@ Solves an optimal transport problem to find the globally optimal assignment betw
 - ⚠️ Slower than other methods
 - ⚠️ Complexity: O(n³) for n instances
 
-**Parameters:**
 
-None - uses default optimal transport solver.
-
-2. Exact Class Transition (ECT)
---------------------------------
-
-**When to use:**
-
-- You need fast results
-- You have clear class transitions (e.g., 0→1, 1→0)
-- Dataset is balanced
-
-**How it works:**
-
-Matches factual instances to counterfactuals based on exact class transitions. For instance, factuals with class 0 are matched to counterfactuals with class 1.
-
-.. code-block:: python
-
-    sparsifier.set_policy(
-        matcher="ect",
-        attributor="pshap"
-    )
-
-**Advantages:**
-
-- ✅ Very fast
-- ✅ Deterministic results
-- ✅ Simple and interpretable
-- ✅ No hyperparameters
-
-**Disadvantages:**
-
-- ⚠️ May not be globally optimal
-- ⚠️ Requires balanced classes
-- ⚠️ Limited flexibility
-
-**Best for:** Binary classification with similar class sizes.
-
-3. Soft CEM
------------
-
-**When to use:**
-
-- You want probabilistic matching
-- You need smooth assignments
-- You have overlapping counterfactuals
-
-**How it works:**
-
-Uses soft assignments based on the Counterfactual Explanation Model (CEM), allowing partial matches between factuals and counterfactuals.
-
-.. code-block:: python
-
-    sparsifier.set_policy(
-        matcher="softcem",
-        attributor="pshap"
-    )
-
-**Advantages:**
-
-- ✅ Smooth, probabilistic matching
-- ✅ Handles uncertainty well
-- ✅ Flexible assignments
-
-**Disadvantages:**
-
-- ⚠️ More complex than ECT
-- ⚠️ May need parameter tuning
-- ⚠️ Less interpretable
-
-4. Nearest Neighbor (NN)
+3. Nearest Neighbor (NN)
 -------------------------
 
 **When to use:**
@@ -174,8 +140,41 @@ Matches each factual to its nearest counterfactual in feature space using Euclid
 **Disadvantages:**
 
 - ⚠️ Locally optimal only
-- ⚠️ May miss better matches
 - ⚠️ Sensitive to scale
+
+4. Coarsened Exact Matching (CEM)
+----------------------------------
+
+**When to use:**
+
+- You want to match on coarsened/binned feature values
+- Variables have natural stratification (e.g., age groups, income brackets)
+- You need balance on important covariates
+- Exact matching is too restrictive but you want interpretable strata
+
+**How it works:**
+
+Temporarily coarsens (bins) continuous variables into discrete strata, performs exact matching on these coarsened values, then uses original feature values for refinement. This balances the trade-off between exact matching precision and matching feasibility.
+
+.. code-block:: python
+
+    sparsifier.set_policy(
+        matcher="cem",
+        attributor="pshap"
+    )
+
+**Advantages:**
+
+- ✅ More flexible than exact matching
+- ✅ Ensures balance on key covariates
+- ✅ Interpretable stratification
+- ✅ Reduces model dependence
+
+**Disadvantages:**
+
+- ⚠️ Requires choosing binning strategy
+- ⚠️ May reduce sample size if strata are too fine
+- ⚠️ Less optimal than OT for complex relationships
 
 Feature Attribution
 ===================
@@ -183,7 +182,7 @@ Feature Attribution
 PSHAP Attributor
 ----------------
 
-COLA uses PSHAP (Pair-wise SHAP) for feature attribution, determining which features are most important for the transition from factual to counterfactual.
+COLA uses PSHAP for feature attribution, determining which features are most important for the transition from factual to counterfactual.
 
 .. code-block:: python
 
@@ -432,22 +431,10 @@ Issue 1: Matching Takes Too Long
     # ✅ Much faster
     sparsifier.set_policy(matcher="ect", attributor="pshap")
 
-Issue 2: Poor Matching Quality
--------------------------------
-
-**Problem:** ECT or NN gives suboptimal results.
-
-**Solution:** Switch to OT for better quality:
-
-.. code-block:: python
-
-    # ✅ Best quality
-    sparsifier.set_policy(matcher="ot", attributor="pshap")
-
-Issue 3: Unbalanced Classes
+Issue 2: Unbalanced Classes
 ----------------------------
 
-**Problem:** ECT fails with unbalanced class distribution.
+**Problem:** CEM fails with unbalanced class distribution.
 
 **Error:**
 
@@ -462,7 +449,7 @@ Issue 3: Unbalanced Classes
     # ✅ Works with any class distribution
     sparsifier.set_policy(matcher="ot", attributor="pshap")
 
-Issue 4: Inconsistent Results
+Issue 3: Inconsistent Results
 ------------------------------
 
 **Problem:** Results vary between runs.
@@ -516,7 +503,7 @@ Best Practices
 
 ❌ **DON'T:**
 
-1. **Don't use NN as default** - it's the simplest but lowest quality
+1. **Don't use CEM as default when having few samples** - it's lowest quality
 
 2. **Don't ignore computational cost** - OT can be slow on large datasets
 

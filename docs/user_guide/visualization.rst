@@ -46,7 +46,29 @@ Quick Start
 
 Show factual and counterfactual data side-by-side with color-coded changes.
 
-Highlight Final Comparison
+Highlight changes comparison
+-------------------------------------
+
+Compare factual, original CF, and refined ACE:
+
+.. code-block:: python
+
+    # Get highlighted DataFrames
+    factual_style, ce_style, ace_style = sparsifier.highlight_changes_comparison()
+
+    # Display in Jupyter
+    display(factual_style, ce_style, ace_style) # display the highlighted dataframes
+
+    # Save to HTML
+    ce_style.to_html('original_cf.html')
+    ace_style.to_html('refined_ace.html')
+
+.. image:: ../images/highlight_difference.png
+   :width: 600
+   :alt: Highlighted DataFrame comparison
+
+
+Highlight changes final
 ---------------------------
 
 Compare factual, original CF, and refined ACE:
@@ -69,11 +91,6 @@ Compare factual, original CF, and refined ACE:
    :width: 600
    :alt: Highlighted DataFrame comparison
 
-**Color coding:**
-
-- 🟦 **Blue** - Feature increased
-- 🟧 **Orange** - Feature decreased
-- ⬜ **White** - No change
 
 **When to use:**
 
@@ -81,27 +98,6 @@ Compare factual, original CF, and refined ACE:
 - Detailed instance-by-instance analysis
 - Generating reports
 
-Highlight Changes Comparison
------------------------------
-
-Compare two specific counterfactuals:
-
-.. code-block:: python
-
-    from xai_cola.ce_sparsifier.visualization import highlight_changes_comparison
-
-    # Compare any two DataFrames
-    factual_df, ce_df, ace_df = sparsifier.get_all_results(limited_actions=5)
-
-    styled_ce, styled_ace = highlight_changes_comparison(
-        factual_df=factual_df,
-        cf1_df=ce_df,
-        cf2_df=ace_df,
-        label_column='Risk'
-    )
-
-    display(styled_ce)
-    display(styled_ace)
 
 2. Direction Heatmap
 ====================
@@ -116,7 +112,7 @@ Basic Usage
     # Generate direction heatmap
     fig = sparsifier.heatmap_direction(
         save_path='./results',
-        save_mode='combined',      # 'combined', 'separate', or 'both'
+        save_mode='combined',      # 'combined', 'separate'
         show_axis_labels=True,     # Show feature and instance names
         figsize=(12, 8)
     )
@@ -127,9 +123,12 @@ Basic Usage
 
 **Color coding:**
 
-- 🟦 **Blue** - Feature increased
-- 🟧 **Red/Orange** - Feature decreased
-- ⬜ **White** - No change
+
+- ⬜ **Gray** - Value of factual data
+- ⬛ **Black** - Label column flip (class transition)
+- 🟦 **Blue (#56B4E9)** - Numerical feature increased
+- 🟢 **Cyan (#7FCDCD)** - Numerical feature decreased
+- 🟧 **Peru (#CD853F)** - Categorical feature changed
 
 Save Modes
 ----------
@@ -154,27 +153,7 @@ Save Modes
     # Creates: heatmap_direction_counterfactual.png
     #          heatmap_direction_counterfactual_with_limited_actions.png
 
-**Both modes**:
 
-.. code-block:: python
-
-    fig = sparsifier.heatmap_direction(
-        save_path='./results',
-        save_mode='both'
-    )
-
-Customization
--------------
-
-.. code-block:: python
-
-    fig = sparsifier.heatmap_direction(
-        save_path='./results',
-        save_mode='combined',
-        show_axis_labels=False,  # Hide labels for cleaner look
-        figsize=(16, 10),        # Larger figure
-        dpi=300                  # Higher resolution
-    )
 
 **When to use:**
 
@@ -198,10 +177,15 @@ Basic Usage
         save_mode='combined'
     )
 
+.. image:: ../images/combined_binary_heatmap.png
+   :width: 400
+   :alt: Binary heatmap
+
 **Color coding:**
 
-- ⬛ **Black** - Feature changed
-- ⬜ **White** - No change
+- ⬜ **Gray** - Value of factual data
+- 🟣 **Purple** - Label column flip (class transition)
+- 🔴 **Red** - Feature changed
 
 **When to use:**
 
@@ -212,7 +196,7 @@ Basic Usage
 4. Stacked Bar Chart
 ====================
 
-Compare the number of feature changes before and after refinement.
+Compare the number of feature changes before and after sparsification.
 
 Basic Usage
 -----------
@@ -231,215 +215,64 @@ Basic Usage
 
 **What it shows:**
 
-- X-axis: Each factual instance
-- Y-axis: Number of feature changes
-- Colors: Different features that changed
-- Two bars per instance: Original CF vs Refined ACE
+- **Y-axis (rows)**: Each factual instance - one row per instance
+- **X-axis (horizontal bars)**: Percentage or count of feature changes needed to flip the label column relative to factual data
+- **Colors**:
 
-**Interpretation:**
+  - **Green bar**: Number of features modified in refined (sparsified) counterfactuals
+  - **Orange bar**: Number of features modified in original counterfactuals
 
-.. code-block:: text
+- Each row displays two horizontal bars (green + orange) representing the comparison between refined ACE and original CF
+- **Key insight**: The chart clearly demonstrates that for almost every instance, the green bars (refined counterfactuals) are significantly shorter than orange bars (original counterfactuals), showing that COLA's sparsification requires fewer feature changes to achieve the same label-flipping outcome 
 
-    Instance 1: ████████ (8 changes)  →  ███ (3 changes)  ✓ Reduced by 5!
-    Instance 2: ██████ (6 changes)    →  ██ (2 changes)   ✓ Reduced by 4!
 
 **When to use:**
 
-- Demonstrating COLA's effectiveness
-- Showing reduction in required actions
+- Demonstrating COLA's sparsification effectiveness
+- Showing the reduction in required feature changes after refinement
+- Comparing original counterfactuals vs. refined counterfactuals
 - Presentations and papers
-
-Customization
--------------
-
-.. code-block:: python
-
-    fig = sparsifier.stacked_bar_chart(
-        save_path='./results',
-        figsize=(16, 8),
-        dpi=300,
-        show_legend=True
-    )
 
 5. Diversity Analysis
 =====================
 
 Explore alternative minimal feature combinations for achieving the same outcome.
 
+**Core Logic:**
+
+After COLA refines counterfactuals and significantly reduces the number of feature changes, diversity analysis uses an exhaustive enumeration approach to:
+
+1. Find all possible minimal feature combinations that can flip the label column
+2. Ensure true minimality: if changing one feature alone can flip the label, no additional features are explored in combination with it
+3. Present multiple alternative paths to achieve the same outcome with minimal changes
+
+This provides users with a diverse set of actionable options, each requiring the smallest possible number of feature modifications.
+
 Basic Usage
 -----------
 
 .. code-block:: python
 
-    # Find all minimal feature combinations
-    diversity_results = sparsifier.diversity_analysis(limited_actions=5)
+    factual_df, diversity_styles = sparsifier.diversity()
+    for i, style in enumerate(diversity_styles):
+        print(f"Instance {i+1} diversity:")
+        display(style)
 
-    # Get highlighted DataFrame
-    diversity_df = sparsifier.highlight_diversity_changes()
-    display(diversity_df)
+.. image:: ../images/diversity.png
+   :width: 600
+   :alt: Diversity analysis
 
 **What it shows:**
 
-For each instance, shows multiple alternative ways to achieve the desired outcome using the same number of features.
+For each instance, shows multiple alternative minimal feature combinations that achieve the desired label flip:
 
-Example Output
---------------
+- Each alternative represents a different set of features to modify
+- All alternatives use the minimum number of features necessary
+- No redundant feature combinations (e.g., if changing feature A alone works, combinations like A+B are excluded)
+- Provides actionable choices for users to select the most feasible path
 
-.. code-block:: text
 
-    Instance 0:
-      Option 1: Change [Income, Duration]
-      Option 2: Change [Income, LoanAmount]
-      Option 3: Change [Age, Duration]
 
-    Instance 1:
-      Option 1: Change [Income, Job]
-      Option 2: Change [Duration, Housing]
-
-**When to use:**
-
-- Providing users with choices
-- Understanding feature importance
-- Exploring alternative action plans
-
-Advanced Usage
---------------
-
-.. code-block:: python
-
-    from xai_cola.ce_sparsifier.visualization import (
-        generate_diversity_for_all_instances
-    )
-
-    # Generate diversity analysis for all instances
-    all_diversity = generate_diversity_for_all_instances(
-        factual_df=factual_df,
-        ml_model=ml_model,
-        target_class=0,
-        max_features=5
-    )
-
-    # Analyze results
-    for instance_id, combinations in all_diversity.items():
-        print(f"\nInstance {instance_id}:")
-        print(f"  Found {len(combinations)} minimal combinations")
-        for i, combo in enumerate(combinations, 1):
-            print(f"  Option {i}: {combo}")
-
-Complete Visualization Workflow
-================================
-
-End-to-End Example
-------------------
-
-.. code-block:: python
-
-    import os
-    from xai_cola import COLA
-    from xai_cola.ce_sparsifier.data import COLAData
-    from xai_cola.ce_sparsifier.models import Model
-    from xai_cola.ce_generator import DiCE
-
-    # 1. Setup
-    data = COLAData(factual_data=df, label_column='Risk')
-    ml_model = Model(model=trained_model, backend="sklearn")
-
-    # 2. Generate counterfactuals
-    explainer = DiCE(ml_model=ml_model)
-    _, cf = explainer.generate_counterfactuals(
-        data=data,
-        factual_class=1,
-        total_cfs=2
-    )
-    data.add_counterfactuals(cf, with_target_column=True)
-
-    # 3. Refine
-    sparsifier = COLA(data=data, ml_model=ml_model)
-    sparsifier.set_policy(matcher="ot", attributor="pshap", random_state=42)
-    min_actions = sparsifier.query_minimum_actions()
-    refined = sparsifier.refine_counterfactuals(limited_actions=min_actions)
-
-    # 4. Create results directory
-    os.makedirs('./results', exist_ok=True)
-
-    # 5. Generate all visualizations
-    print("Generating visualizations...")
-
-    # Heatmaps
-    sparsifier.heatmap_direction(
-        save_path='./results',
-        save_mode='both',
-        show_axis_labels=True
-    )
-    print("✓ Direction heatmap saved")
-
-    sparsifier.heatmap_binary(
-        save_path='./results',
-        save_mode='both'
-    )
-    print("✓ Binary heatmap saved")
-
-    # Stacked bar chart
-    sparsifier.stacked_bar_chart(save_path='./results')
-    print("✓ Stacked bar chart saved")
-
-    # Highlighted DataFrames
-    factual_style, ce_style, ace_style = sparsifier.highlight_changes_final()
-    ce_style.to_html('./results/original_counterfactual.html')
-    ace_style.to_html('./results/refined_counterfactual.html')
-    print("✓ Highlighted DataFrames saved")
-
-    # Diversity analysis
-    diversity_df = sparsifier.highlight_diversity_changes()
-    diversity_df.to_html('./results/diversity_analysis.html')
-    print("✓ Diversity analysis saved")
-
-    print("\n✓ All visualizations complete!")
-    print("Check ./results/ directory for outputs")
-
-For Publications
-----------------
-
-High-quality figures for papers:
-
-.. code-block:: python
-
-    # High resolution, no axis labels for clean look
-    sparsifier.heatmap_direction(
-        save_path='./paper_figures',
-        save_mode='combined',
-        show_axis_labels=False,
-        figsize=(10, 6),
-        dpi=300
-    )
-
-    sparsifier.stacked_bar_chart(
-        save_path='./paper_figures',
-        figsize=(12, 5),
-        dpi=300
-    )
-
-For Presentations
------------------
-
-Larger, easy-to-read figures:
-
-.. code-block:: python
-
-    # Bigger font, higher contrast
-    sparsifier.heatmap_direction(
-        save_path='./presentation',
-        save_mode='combined',
-        show_axis_labels=True,
-        figsize=(16, 10),
-        dpi=150
-    )
-
-    sparsifier.stacked_bar_chart(
-        save_path='./presentation',
-        figsize=(16, 8),
-        dpi=150
-    )
 
 Common Issues
 =============
