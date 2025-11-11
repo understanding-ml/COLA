@@ -85,19 +85,19 @@ Here's a complete working example using the built-in German Credit dataset:
     min_actions = sparsifier.query_minimum_actions()
     print(f"Minimum actions needed: {min_actions}")
 
-    # Step 10: Refine counterfactuals
-    refined_cf = sparsifier.refine_counterfactuals(limited_actions=min_actions)
-    print(f"✓ Refined {len(refined_cf)} counterfactuals!")
+    # Step 10: Sparsify counterfactuals
+    sparsified_cf = sparsifier.sparsify_counterfactuals(limited_actions=min_actions)
+    print(f"✓ Sparsified {len(sparsified_cf)} counterfactuals!")
 
     # Step 11: Compare results
     factual_df, ce_df, ace_df = sparsifier.get_all_results(
         limited_actions=min_actions
     )
     original_changes = (factual_df != ce_df).sum().sum()
-    refined_changes = (factual_df != ace_df).sum().sum()
+    sparsified_changes = (factual_df != ace_df).sum().sum()
     print(f"Original CF: {original_changes} feature changes")
-    print(f"Refined ACE: {refined_changes} feature changes")
-    print(f"Reduction: {original_changes - refined_changes} fewer changes!")
+    print(f"Sparsified ACE: {sparsified_changes} feature changes")
+    print(f"Reduction: {original_changes - sparsified_changes} fewer changes!")
 
     # Step 12: Visualize results
     sparsifier.heatmap_direction(save_path='./results')
@@ -110,11 +110,11 @@ Expected Output
 .. code-block:: text
 
     Model accuracy: 0.730
-    Minimum actions needed: 3
-    ✓ Refined 40 counterfactuals!
-    Original CF: 120 feature changes
-    Refined ACE: 60 feature changes
-    Reduction: 60 fewer changes!
+    Minimum actions needed: 20
+    ✓ Sparsified 10 counterfactuals!
+    Original CF: 30 feature changes
+    Sparsified ACE: 20 feature changes
+    Reduction: 10 fewer changes!
     ✓ Visualizations saved to ./results/
 
 Breaking It Down
@@ -145,14 +145,14 @@ Train your model as usual. COLA works with any sklearn-compatible model.
 
 .. code-block:: python
 
-    # Use any CF explainer (DiCE, DisCount, Alibi, etc.)
+    # Use built-in CF explainer (DiCE or DisCount)   / You can use your own explainer
     explainer = DiCE(ml_model=ml_model)
     _, cf = explainer.generate_counterfactuals(...)
 
     # Add to data
     data.add_counterfactuals(cf, with_target_column=True)
 
-**Step 8-10: Refine with COLA**
+**Step 8-10: Sparsify with COLA**
 
 .. code-block:: python
 
@@ -162,7 +162,7 @@ Train your model as usual. COLA works with any sklearn-compatible model.
     # Set policy
     sparsifier.set_policy(matcher="ot", attributor="pshap")
 
-    # Refine
+    # Sparsify
     refined = sparsifier.refine_counterfactuals(limited_actions=5)
 
 **Step 11-12: Analyze and Visualize**
@@ -175,36 +175,7 @@ Train your model as usual. COLA works with any sklearn-compatible model.
     # Visualize
     sparsifier.heatmap_direction(save_path='./results')
     sparsifier.stacked_bar_chart(save_path='./results')
-
-Minimal Example
-===============
-
-Absolute minimum code:
-
-.. code-block:: python
-
-    from xai_cola import COLA
-    from xai_cola.ce_sparsifier.data import COLAData
-    from xai_cola.ce_sparsifier.models import Model
-    from xai_cola.ce_generator import DiCE
-
-    # Assuming you have: df (data), trained_model
-
-    # 1. Prepare
-    data = COLAData(factual_data=df, label_column='target')
-    ml_model = Model(model=trained_model, backend="sklearn")
-
-    # 2. Generate CFs
-    explainer = DiCE(ml_model=ml_model)
-    _, cf = explainer.generate_counterfactuals(data=data, factual_class=1)
-    data.add_counterfactuals(cf, with_target_column=True)
-
-    # 3. Refine
-    sparsifier = COLA(data=data, ml_model=ml_model)
-    sparsifier.set_policy(matcher="ot", attributor="pshap")
-    refined = sparsifier.refine_counterfactuals(limited_actions=5)
-
-    # Done!
+    print("✓ Visualizations saved to ./results/")
 
 Using Your Own Data
 ===================
@@ -269,23 +240,11 @@ PyTorch
 
     ml_model = Model(model=model, backend="pytorch")
 
-TensorFlow/Keras
-----------------
-
-.. code-block:: python
-
-    import tensorflow as tf
-
-    model = tf.keras.Sequential([...])
-    model.compile(...)
-    model.fit(X_train, y_train)
-
-    ml_model = Model(model=model, backend="TF2")
 
 Common Variations
 =================
 
-Using ECT Matcher (Faster)
+Matcher: Using ECT Matcher (Faster)
 ---------------------------
 
 .. code-block:: python
@@ -293,7 +252,7 @@ Using ECT Matcher (Faster)
     # For faster results, use ECT instead of OT
     sparsifier.set_policy(matcher="ect", attributor="pshap")
 
-With Feature Restrictions
+COLA sparsify counterfactuals: With Feature Restrictions
 --------------------------
 
 .. code-block:: python
@@ -304,7 +263,7 @@ With Feature Restrictions
         features_to_vary=['Income', 'LoanAmount', 'Duration']
     )
 
-Using DisCount Instead of DiCE
+CE generator: Using DisCount Instead of DiCE
 -------------------------------
 
 .. code-block:: python
@@ -363,7 +322,7 @@ Solution: Always call ``set_policy()`` before ``refine_counterfactuals()``
 
 **Error: "Counterfactual data not set"**
 
-Solution: Add counterfactuals to COLAData before creating COLA
+Solution: Before creating COLA, you should add counterfactuals to COLAData, or you can input counterfactuals when initializing COLAData.
 
 .. code-block:: python
 
