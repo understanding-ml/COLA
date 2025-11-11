@@ -16,7 +16,7 @@ By the end of this tutorial, you will:
 
 ## The Problem
 
-Imagine you're building a loan approval system. A customer was denied a loan, and you need to explain what they should change to get approved. Traditional counterfactual explainers might suggest changing 10 different things. COLA helps you identify the 2-3 most important changes.
+Imagine you're building a loan approval system. A customer was denied a loan, and you need to explain what they should change to get approved. Traditional counterfactual explainers might suggest changing 2-6 different things. COLA helps you identify the 1-2 most important changes.
 
 ## Step 1: Prepare Your Data
 
@@ -363,8 +363,8 @@ for col in f.columns:
 
 ## Next Steps
 
-- [Tutorial 2: Working with Different Explainers](02_explainers.md)
-- [Tutorial 3: Data Interface Deep Dive](03_data_interface.md)
+<!-- - [Tutorial 2: Working with Different Explainers](02_explainers.md)
+- [Tutorial 3: Data Interface Deep Dive](03_data_interface.md) -->
 - [API Reference](../../API_REFERENCE.md)
 
 ## Summary
