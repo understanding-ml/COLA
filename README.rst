@@ -68,16 +68,16 @@ Installation
 
 Usage Guide
 ~~~~~~~~~~~
-COLA is a python package that helps refine the results of generated counterfactual explanations. We also provide built-in
+COLA is a python package that helps sparsify the results of generated counterfactual explanations. We also provide built-in
 counterfactual algorithms like `DiCE <https://github.com/interpretml/DiCE?tab=readme-ov-file>`_, `DisCount <https://arxiv.org/pdf/2401.13112>`_,
-and built-in German Credit dataset for testing.
+and built-in German Credit dataset for testing. **Note:** COLA only addresses tabular data with numerical and categorical features.
 
-Do the following steps to start refining (You have already prepared your data, preprocessor and trained model):
+Do the following steps to start sparsifying counterfactuals (You have already prepared your data, preprocessor and trained model):
 
 1. Initialize the data interface
 2. Initialize the model interface
 3. Generate counterfactual explanations
-4. Refine the counterfactual explanations
+4. Sparsify the counterfactual explanations
 5. Visualize results
 
 **Preparation: Prepare your data, preprocessor, and trained model**
@@ -197,7 +197,7 @@ COLA can accept two kinds of model: sklearn model and pytorch model. The model c
     data.add_counterfactuals(counterfactual, with_target_column=True)
     data.summary()
 
-**Step4: Initialize COLA and refine counterfacutlas**
+**Step4: Initialize COLA and sparsify counterfactuals**
 
 .. code:: python
 
@@ -219,16 +219,14 @@ COLA can accept two kinds of model: sklearn model and pytorch model. The model c
     # Query minimum actions
     limited_actions = sparsifier.query_minimum_actions()
 
-    # Refine counterfactual explanations
-    refined_counterfactuals_df = sparsifier.refine_counterfactuals(limited_actions=limited_actions)
-    display(refined_counterfactuals_df)
-
-
+    # Sparsify counterfactuals
+    sparsified_counterfactuals_df = sparsifier.sparsify_counterfactuals(limited_actions=limited_actions)
+    display(sparsified_counterfactuals_df)
 
 
 **Step5: Visualization**
 
-We provide several visualization methods to help users better understand the refinement results.
+We provide several visualization methods to help users better understand the sparsified results.
 For complete visualization options, see the full documentation.
 
 .. code:: python
@@ -253,7 +251,7 @@ For complete visualization options, see the full documentation.
 
 .. code:: python
 
-    # Actions required to flip the target per instance: refined counterfactuals vs. original counterfactuals
+    # Actions required to flip the target per instance: sparsified counterfactuals vs. original counterfactuals
     fig = sparsifier.stacked_bar_chart(save_path='./results')
 
 .. image:: https://raw.githubusercontent.com/understanding-ml/COLA/COLA-4-MVP/docs/images/stacked_bar_chart.png
@@ -266,7 +264,7 @@ Citing
 -------
 
 The python library xai-cola is described in the following paper:
-Lin Zhu, Lei You (2025). xai-cola: A python library for refining counterfactual explanations.
+Lin Zhu, Lei You (2025). xai-cola: A python library for sparsifying counterfactual explanations.
 
 What's more, the theoretical foundation of COLA is described in the following paper:
 Lei You, Yijun Bian, and Lele Cao (2024). `Refining Counterfactual Explanations With Joint-Distribution-Informed Shapley Towards Actionable Minimality <https://arxiv.org/pdf/2410.05419>`_.
