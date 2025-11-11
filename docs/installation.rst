@@ -66,18 +66,41 @@ Requirements
 - Python >= 3.8
 - Python < 3.13
 
-**Core Dependencies:**
+**Core Dependencies (Required):**
 
-- numpy >= 1.19.0
-- pandas >= 1.1.0
-- scikit-learn >= 0.24.0
-- matplotlib >= 3.3.0
-- POT (Python Optimal Transport) >= 0.8.0
+- numpy >= 1.26.4, < 2.0
+- pandas >= 2.0.0, <= 2.3.0
+- scikit-learn >= 1.3.0, <= 1.7.0
+- scipy >= 1.13.0, <= 1.16.0
+
+**Counterfactual Explainers:**
+
+- dice-ml >= 0.10, <= 0.12
+- cem == 1.1.0
+
+**Visualization:**
+
+- matplotlib >= 3.8.0
+- seaborn >= 0.13.0
+
+**Feature Attributions:**
+
+- shap >= 0.41.0
+
+**Optimal Transport:**
+
+- POT >= 0.9.0
+
+**Progress Bar:**
+
+- tqdm >= 4.67.0
+
+**Deep learning model**
+
+- torch >= 2.3.0 (for PyTorch models)
 
 **Optional Dependencies:**
 
-- torch >= 1.8.0 (for PyTorch models)
-- tensorflow >= 2.0.0 (for TensorFlow models)
 - jupyter (for notebooks)
 
 Verifying Installation
@@ -184,47 +207,6 @@ Install PyTorch (if you need PyTorch support):
 
 See `PyTorch installation guide <https://pytorch.org/get-started/locally/>`_ for more options.
 
-Issue 4: TensorFlow Not Found
-------------------------------
-
-**Error:**
-
-.. code-block:: text
-
-    ModuleNotFoundError: No module named 'tensorflow'
-
-**Solution:**
-
-Install TensorFlow (if you need TensorFlow support):
-
-.. code-block:: bash
-
-    pip install tensorflow
-
-Issue 5: Permission Denied
----------------------------
-
-**Error:**
-
-.. code-block:: text
-
-    PermissionError: [Errno 13] Permission denied
-
-**Solution:**
-
-Install in user space:
-
-.. code-block:: bash
-
-    pip install --user xai-cola
-
-Or use a virtual environment (recommended):
-
-.. code-block:: bash
-
-    python -m venv cola_env
-    source cola_env/bin/activate  # On Windows: cola_env\Scripts\activate
-    pip install xai-cola
 
 Virtual Environment Setup
 =========================
@@ -266,30 +248,14 @@ Using conda
     # Deactivate when done
     conda deactivate
 
-Docker (Advanced)
+Docker (TBA)
 -----------------
 
 If you prefer Docker:
 
 .. code-block:: dockerfile
 
-    FROM python:3.10-slim
-
-    # Install COLA
-    RUN pip install xai-cola
-
-    # Copy your code
-    COPY . /app
-    WORKDIR /app
-
-    CMD ["python", "your_script.py"]
-
-Build and run:
-
-.. code-block:: bash
-
-    docker build -t cola-app .
-    docker run cola-app
+    To be added in future releases.
 
 Development Installation
 ========================
