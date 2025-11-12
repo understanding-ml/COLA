@@ -14,9 +14,9 @@ COLA Documentation
    :target: https://pypi.org/project/xai-cola/
    :alt: PyPI version
 
-.. image:: https://img.shields.io/badge/python-3.8+-blue.svg
+.. image:: https://img.shields.io/badge/python-3.9+-blue.svg
    :target: https://www.python.org/downloads/
-   :alt: Python 3.8+
+   :alt: Python 3.9+
 
 Welcome to COLA
 ===============

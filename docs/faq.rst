@@ -43,7 +43,7 @@ See :doc:`installation` for detailed instructions.
 Which Python versions are supported?
 -------------------------------------
 
-Python 3.8 to 3.12 are supported.
+Python 3.9 to 3.12 are supported.
 
 Do I need PyTorch or TensorFlow?
 ---------------------------------
