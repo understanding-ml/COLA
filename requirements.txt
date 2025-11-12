@@ -1,0 +1,34 @@
+# Core dependencies (required)
+numpy>=1.26.4,<2.0
+pandas>=2.0.0,<=2.3.0
+scikit-learn>=1.3.0,<=1.7.0
+scipy>=1.13.0,<=1.16.0
+
+# Counterfactual explainers
+dice-ml>=0.10,<=0.12
+cem==1.1.0
+
+# Visualization
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# Feature attributions
+shap>=0.41.0
+
+# Optimal transport
+POT>=0.9.0
+
+# Deep Learning
+torch>=2.3.0
+
+# Progress Bar
+tqdm>=4.67.0
+
+# Interactive Python
+ipython>=8.0.0
+
+# Optional dependencies - install separately if needed:
+# Jupyter: pip install xai-cola[jupyter]
+# All optional: pip install xai-cola[all]
+# Development tools: pip install xai-cola[dev]
+

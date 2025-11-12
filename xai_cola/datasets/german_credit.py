@@ -11,7 +11,9 @@ TEST_SIZE = 0.3
 class GermanCreditDataset:
 
     def __init__(self):
-        self.data_path = "datasets/rawdata/"
+        # Use package-relative path for robustness
+        package_dir = os.path.dirname(os.path.abspath(__file__))
+        self.data_path = os.path.join(package_dir, "rawdata")
         self.name = "german_credit"
         self.data_filename = f"{self.name}.csv"
         self.target_name = "Risk"
@@ -86,8 +88,7 @@ class GermanCreditDataset:
         # 1) 先把目标映射到数值（可能会产生 NaN：比如既不是 "good" 也不是 "bad" 的脏值）
         self.df[self.target_name] = (
             self.df[self.target_name]
-              .replace({"good": 0, "bad": 1})
-              .infer_objects(copy=False)
+              .map({"good": 0, "bad": 1})
         )
 
         # 2) 统一删除包含 NaN 的任何行（含特征或目标列）

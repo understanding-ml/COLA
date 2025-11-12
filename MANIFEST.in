@@ -1,0 +1,38 @@
+# Include the README file
+include README.rst
+include LICENSE
+include CHANGELOG.md
+
+# Include requirements file
+include requirements.txt
+
+# Include example notebooks
+include examples/*.ipynb
+include examples/*.py
+
+# Include data files within the package
+recursive-include xai_cola/datasets *.csv
+recursive-include xai_cola/datasets *.data
+
+# Exclude root-level datasets folder
+prune datasets
+
+# Include trained models
+include *.pkl
+
+# Include documentation
+recursive-include docs *.png
+recursive-include docs *.jpg
+recursive-include docs *.md
+
+# Exclude unnecessary files
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *.so
+global-exclude *.egg
+global-exclude .DS_Store
+global-exclude .git*
+global-exclude test_*.py
+global-exclude debug_*.py
+global-exclude notebook_test_*.py
+
