@@ -1,5 +1,5 @@
 .. image:: https://raw.githubusercontent.com/understanding-ml/COLA/COLA-4-MVP/docs/images/logo_cola.png
-   :width: 400
+   :width: 600
    :alt: COLA Logo
    :align: center
 
@@ -23,17 +23,12 @@ COunterfactual explanations with Limited Actions (COLA)
 .. _Python: https://www.python.org/downloads/
 
 |
-  
-Explainable Artificial Intelligence (XAI) is essential for making artificial intelligence systems transparent and trustworthy (`Arrieta et al., 2020 <https://www.sciencedirect.com/science/article/pii/S1566253519308103?casa_token=tMxtv_87MG0AAAAA:_f_pbOfKiVGSTKWC9mN6dxKyXYuO6FiE4-OWoUubefLcRe6JDOILQlo0aqPtyuEU5j9hoPzv>`_). 
-Within this area, feature attributions (FA) methods, such as Shapley values (`Sundararajan & Najmi, 2020 <https://proceedings.mlr.press/v119/sundararajan20b.html>`_; `Lundberg & Lee, 2017 <https://www.planchet.net/EXT/ISFA/1226.nsf/769998e0a65ea348c1257052003eb94f/02b26cfa6ecc8cd3c12583d9006de8c2/$FILE/7062-a-unified-approach-to-interpreting-model-predictions.pdf>`_), determine how much each input feature contributes to a machine learning (ML) model's output. 
-This helps simplify complex models by highlighting the most influential features.
 
-Another technique counterfactual explanations (CE) (`Wachter et al., 2017 <https://heinonline.org/HOL/LandingPage?handle=hein.journals/hjlt31&div=29&id=&page=>`_; `Guidotti, 2022 <https://link.springer.com/article/10.1007/s10618-022-00831-6>`_) show how small changes in input features can lead to different outcomes. 
-While hundreds of CE algorithms have been proposed (`Guidotti, 2022 <https://link.springer.com/article/10.1007/s10618-022-00831-6>`_) to date, it is hardly practical to find one single CE algorithm that suits for all user cases, due to each of them is tailored particularly for their own different scenarios, goals, and tasks. 
-For instance, the objective in one CE algorithm can be defined as finding a single counterfactual instance for each factual instance sometimes, while at othertimes, it could be treating multiple instances as a group and seeking one or more/multiple counterfactual instances for each factual observation. 
-In some cases, the focus of a CE algorithm could be on theentire dataset, aiming to identify global CE that indicate the direction to move the factual instances to achieve the desired model output (`Rawal & Lakkaraju, 2020 <https://proceedings.neurips.cc/paper/2020/hash/8ee7730e97c67473a424ccfeff49ab20-Abstract.html>`_; `Ley et al., 2022 <https://arxiv.org/abs/2204.06917>`_; `Carrizosa et al., 2024 <https://www.sciencedirect.com/science/article/pii/S037722172400002X>`_). 
-Yet in other scenarios, the group of factual instances is viewed as a distribution, aiming to find a counterfactual distribution that remains similar in shape to the factual distribution (`You et al., 2024 <https://arxiv.org/pdf/2401.13112>`_), 
-and ensuring comparable costs. Besides, some CE algorithms assume differentiable models, whereas others are designed specifically for tree-based or ensemble models.
+Explainable AI (XAI) aims to make models transparent and trustworthy (`Arrieta et al., 2020 <https://www.sciencedirect.com/science/article/pii/S1566253519308103?casa_token=tMxtv_87MG0AAAAA:_f_pbOfKiVGSTKWC9mN6dxKyXYuO6FiE4-OWoUubefLcRe6JDOILQlo0aqPtyuEU5j9hoPzv>`_).
+Within XAI, counterfactual explanations (CE) show minimal feature changes that flip model outcomes (`Wachter et al., 2017 <https://heinonline.org/HOL/LandingPage?handle=hein.journals/hjlt31&div=29&id=&page=>`_).
+Given diverse goals and settings, no single CE method fits all (`Guidotti, 2022 <https://link.springer.com/article/10.1007/s10618-022-00831-6>`_).
+Objectives vary across: (i) instance-level CEs—single or multiple per case (`Mothilal et al., 2020 <https://arxiv.org/pdf/1905.07697>`_); (ii) global/dataset-level CEs that indicate movement directions (`Rawal & Lakkaraju, 2020 <https://proceedings.neurips.cc/paper/2020/hash/8ee7730e97c67473a424ccfeff49ab20-Abstract.html>`_; `Ley et al., 2022 <https://arxiv.org/abs/2204.06917>`_; `Carrizosa et al., 2024 <https://www.sciencedirect.com/science/article/pii/S037722172400002X>`_); and (iii) distributional CEs that shift groups while preserving shape and cost (`You et al., 2024 <https://arxiv.org/pdf/2401.13112>`_).
+Methods also differ in model assumptions (differentiable vs. tree/ensemble).
 
 What is COLA?
 ----------------------------
