@@ -35,58 +35,16 @@ class COLA:
     This class orchestrates the entire workflow of refining counterfactual explanations
     by limiting the number of feature changes.
     
-    Parameters:
-    -----------
-    data : COLAData
-        Data wrapper containing factual and counterfactual data.
-        Must have both factual and counterfactual data set using add_counterfactuals().
-    ml_model : Model
-        Machine learning model interface
-    
-    Raises:
-    -------
-    ValueError
-        If data does not have counterfactual data set
-    
-    Example:
-    --------
-    >>> from xai_cola import COLA
-    >>> from xai_cola.ce_sparsifier.data import COLAData
-    >>> from xai_cola.ce_sparsifier.models import Model
-    >>> 
-    >>> # Initialize data with factual and counterfactual
-    >>> data = COLAData(factual_data=df, label_column='Risk')
-    >>> data.add_counterfactuals(cf_df)  # Must add counterfactuals first
-    >>> 
-    >>> # Initialize model
-    >>> model = Model(ml_model, backend='sklearn')
-    >>> 
-    >>> # Use COLA (counterfactual data is required)
-    >>> cola = COLA(data=data, ml_model=model)
-    >>> cola.set_policy(matcher='ect', attributor='pshap')
-    >>> 
-    >>> # Get only refined counterfactual
-    >>> refined_cf = cola.get_refined_counterfactual(limited_actions=10)
-    >>> 
-    >>> # Or get all results
-    >>> factual_df, counterfactual_df, refined_cf_df = cola.get_all_results(limited_actions=10)
-    >>> 
-    >>> # Restrict modifications to specific features only
-    >>> refined_cf = cola.get_refined_counterfactual(
-    ...     limited_actions=10,
-    ...     features_to_vary=['Age', 'Credit amount']  # Only modify these features
-    ... )
     """
     
     def __init__(
         self,
         data: COLAData,
         ml_model: Model,
-        random_state: int = 42,
     ):
         """
         Initialize COLA with data and model.
-        
+
         Parameters:
         -----------
         data : COLAData
@@ -94,9 +52,7 @@ class COLA:
             Must have both factual and counterfactual data set.
         ml_model : Model
             Machine learning model interface
-        random_state : int, optional
-            Random seed for reproducible results. Default is 42.
-        
+
         Raises:
         -------
         ValueError
@@ -104,7 +60,7 @@ class COLA:
         """
         self.data = data
         self.ml_model = ml_model
-        self.random_state = random_state
+        self.random_state = None  # Will be set in set_policy()
 
         # Verify that data has factual data
         if data.factual_df is None:
@@ -171,12 +127,12 @@ class COLA:
         self,
         matcher: str = "ot",
         attributor: str = "pshap",
-        random_state: Optional[int] = None,
+        random_state: int = 42,
         **kwargs
     ):
         """
         Set the refinement policy.
-        
+
         Parameters:
         -----------
         matcher : str
@@ -186,20 +142,16 @@ class COLA:
         attributor : str
             Feature attribution method
             Options: "pshap" (PSHAP with joint probability)
-        Avalues_method : str
-            Method for computing A-values
-            Options: "max" (maximum value method)
         random_state : int, optional
             Random seed used to control the reproducibility of counterfactual actions sampling.
-            The same random_state means the same action sequence is sampled whenever counterfactuals or minimum-actions are queried.
-            If None, uses the value provided at class initialization. Default is None.
+            The same random_state means the same action sequence is sampled whenever
+            counterfactuals or minimum-actions are queried. Default is 42.
         **kwargs
             Additional parameters for matcher and attributor
         """
         self.matcher = matcher
         self.attributor = attributor
-        if random_state is not None:
-            self.random_state = random_state
+        self.random_state = random_state
         self.matcher_params = kwargs
         
         # Validate matcher
