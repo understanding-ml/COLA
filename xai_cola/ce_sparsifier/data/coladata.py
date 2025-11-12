@@ -54,7 +54,8 @@ class COLAData:
         用于在生成反事实前后进行数据转换
 
     preprocessor : Optional[object], default=None
-        transform_method 的别名，两者选其一即可
+        **Deprecated.** Alias for transform_method, kept for backward compatibility.
+        Use transform_method instead.
     """
 
     def __init__(
@@ -72,7 +73,17 @@ class COLAData:
 
         # 设置数据预处理器（transform_method 和 preprocessor 是别名，取其一）
         if transform_method is not None and preprocessor is not None:
-            raise ValueError("Cannot specify both 'transform_method' and 'preprocessor'. Use one or the other.")
+            raise ValueError("Cannot specify both 'transform_method' and 'preprocessor'. Use transform_method only.")
+
+        # preprocessor 是废弃的别名，优先使用 transform_method
+        if preprocessor is not None:
+            import warnings
+            warnings.warn(
+                "'preprocessor' parameter is deprecated and will be removed in a future version. "
+                "Use 'transform_method' instead.",
+                DeprecationWarning,
+                stacklevel=2
+            )
 
         self.transform_method = transform_method if transform_method is not None else preprocessor
 
