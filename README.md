@@ -9,7 +9,7 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2410.05419-B31B1B.svg)](https://arxiv.org/pdf/2410.05419)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![PyPI](https://img.shields.io/pypi/v/xai-cola.svg)](https://pypi.org/project/xai-cola/)
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
 ---
 
