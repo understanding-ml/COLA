@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 
-__version__ = "0.1.5"
+__version__ = "0.1.0"
 
 # Try to read version from VERSION file in project root
 version_file = Path(__file__).parent.parent / "VERSION"

@@ -22,7 +22,7 @@ if Path("requirements.txt").exists():
 
 setup(
     name="xai-cola",
-    version="0.1.5",
+    version="0.1.0",
     description="COunterfactual explanations with Limited Actions (COLA)",
     long_description=long_description,
     long_description_content_type="text/markdown",

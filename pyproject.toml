@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xai-cola"
-version = "0.1.5"
+version = "0.1.0"
 description = "COunterfactual explanations with Limited Actions (COLA)"
-readme = "README.rst"
+readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
