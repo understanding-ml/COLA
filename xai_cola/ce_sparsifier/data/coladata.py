@@ -1,8 +1,8 @@
 """
-COLA Data Module - 统一的数据接口
+COLA Data Module - Unified Data Interface
 
-支持 Pandas DataFrame 和 NumPy array 输入
-自动处理 target column 的管理
+Supports Pandas DataFrame and NumPy array inputs
+Automatically handles target column management
 """
 
 from typing import List, Optional, Union
@@ -18,40 +18,40 @@ except ImportError:
 
 class COLAData:
     """
-    COLA 统一数据接口
+    COLA Unified Data Interface
 
-    支持同时管理 factual 和 counterfactual 数据
-    自动验证数据一致性
+    Manages both factual and counterfactual data simultaneously
+    Automatically validates data consistency
 
     Parameters:
     -----------
     factual_data : Union[pd.DataFrame, np.ndarray]
-        事实数据（原始数据），必须包含 label column
-        如果是 DataFrame：检查 label_column 是否存在
-        如果是 numpy：需要提供所有列名（包含 label_column）
+        Factual data (original data), must include label column
+        If DataFrame: checks if label_column exists
+        If numpy: must provide all column names (including label_column)
 
     label_column : str
-        标签列名称，默认应在最后一列
+        Label column name, should be in the last column by default
 
     counterfactual_data : Optional[Union[pd.DataFrame, np.ndarray]]
-        反事实数据（可选）
-        如果是 DataFrame：检查与 factual 的列是否一致
-        如果是 numpy：使用 factual 的列名
+        Counterfactual data (optional)
+        If DataFrame: checks column consistency with factual
+        If numpy: uses factual column names
 
     column_names : Optional[List[str]]
-        仅当 factual_data 是 numpy 时必需
-        提供所有列名（包括 label_column），顺序要匹配
+        Required only when factual_data is numpy
+        Provide all column names (including label_column), order must match
 
     numerical_features : Optional[List[str]], default=None
-        数值特征列表。用于记录哪些特征是连续数值型。
-        如果为 None，默认所有特征都是 numerical。
-        其他特征自动推断为 categorical。
-        注意：这个参数仅用于记录特征类型信息，不进行数据转换。
+        List of numerical features. Used to record which features are continuous numeric.
+        If None, all features are assumed to be numerical by default.
+        Other features are automatically inferred as categorical.
+        Note: This parameter is only used to record feature type information, no data transformation is performed.
 
     transform_method : Optional[object], default=None
-        数据预处理器（如 sklearn 的 StandardScaler, ColumnTransformer 等）
-        必须有 transform() 和 inverse_transform() 方法
-        用于在生成反事实前后进行数据转换
+        Data preprocessor (e.g., sklearn's StandardScaler, ColumnTransformer, etc.)
+        Must have transform() and inverse_transform() methods
+        Used for data transformation before and after generating counterfactuals
 
     preprocessor : Optional[object], default=None
         **Deprecated.** Alias for transform_method, kept for backward compatibility.
@@ -68,14 +68,14 @@ class COLAData:
         transform_method: Optional[object] = None,
         preprocessor: Optional[object] = None
     ):
-        # 验证并设置 label column
+        # Validate and set label column
         self.label_column = label_column
 
-        # 设置数据预处理器（transform_method 和 preprocessor 是别名，取其一）
+        # Set data preprocessor (transform_method and preprocessor are aliases, use one)
         if transform_method is not None and preprocessor is not None:
             raise ValueError("Cannot specify both 'transform_method' and 'preprocessor'. Use transform_method only.")
 
-        # preprocessor 是废弃的别名，优先使用 transform_method
+        # preprocessor is a deprecated alias, prefer transform_method
         if preprocessor is not None:
             import warnings
             warnings.warn(
@@ -87,23 +87,23 @@ class COLAData:
 
         self.transform_method = transform_method if transform_method is not None else preprocessor
 
-        # 验证 transform_method 有必要的方法
+        # Validate that transform_method has necessary methods
         if self.transform_method is not None:
             if not hasattr(self.transform_method, 'transform'):
                 raise ValueError("transform_method must have a 'transform()' method")
 
-            # 对于 ColumnTransformer，我们在内部实现了自定义的 inverse_transform
-            # 所以不需要在这里检查 inverse_transform 方法
-            # 对于其他转换器，只在实际调用时才会检查
+            # For ColumnTransformer, we implement custom inverse_transform internally
+            # So no need to check inverse_transform method here
+            # For other transformers, only check when actually called
             if not (SKLEARN_AVAILABLE and isinstance(self.transform_method, ColumnTransformer)):
-                # 非 ColumnTransformer 需要有 inverse_transform
+                # Non-ColumnTransformer needs to have inverse_transform
                 if not hasattr(self.transform_method, 'inverse_transform'):
                     raise ValueError(
                         "transform_method must have an 'inverse_transform()' method. "
                         "ColumnTransformer is supported with custom inverse_transform logic."
                     )
 
-        # 处理 factual data
+        # Process factual data
         self.factual_df = self._process_input_data(
             factual_data,
             data_type='factual',
@@ -111,12 +111,13 @@ class COLAData:
             reference_df=None
         )
 
-        # 设置 numerical_features（仅用于记录特征类型信息）
+        # Set numerical_features (only for recording feature type information)
         self.numerical_features = numerical_features if numerical_features is not None else []
 
-        # 如果明确给出了 numerical_features，则把剩余的特征当作 categorical 并
-        # 将它们的值转换为字符串类型，避免后续在交互（例如 DiCE 生成反事实）中
-        # 因类型不匹配导致的警告或错误。不要转换 label column。
+        # If numerical_features is explicitly provided, treat remaining features as categorical
+        # and convert their values to string type to avoid warnings or errors due to type
+        # mismatches in subsequent interactions (e.g., DiCE generating counterfactuals).
+        # Do not convert the label column.
         if self.numerical_features:
             try:
                 categorical_cols = [
@@ -124,78 +125,78 @@ class COLAData:
                 ]
                 for col in categorical_cols:
                     if col in self.factual_df.columns:
-                        # 转为字符串以避免 int/str 混合导致的 pandas 警告
+                        # Convert to string to avoid pandas warnings from int/str mixing
                         try:
                             self.factual_df[col] = self.factual_df[col].astype(str)
                         except Exception:
-                            # 如果转换失败（非常罕见），则跳过该列
+                            # If conversion fails (very rare), skip this column
                             pass
             except Exception:
-                # 容错：任何异常都不应阻塞 COLAData 的构造
+                # Fault tolerance: any exception should not block COLAData construction
                 pass
 
-        # 处理 counterfactual data（如果提供）
+        # Process counterfactual data (if provided)
         self.counterfactual_df = None
         if counterfactual_data is not None:
             self.add_counterfactuals(counterfactual_data)
 
-        # ========== 转换后的数据存储 ==========
-        # 如果设置了 transform_method，自动计算并存储转换后的数据
+        # ========== Transformed Data Storage ==========
+        # If transform_method is set, automatically compute and store transformed data
         self.transformed_factual_df = None
         self.transformed_counterfactual_df = None
-        self.transformed_column_order = None  # 转换后的列顺序（ColumnTransformer 会改变列顺序）
+        self.transformed_column_order = None  # Column order after transformation (ColumnTransformer changes column order)
 
         if self.transform_method is not None:
-            # 转换 factual 数据
+            # Transform factual data
             factual_features = self.get_factual_features()
             self.transformed_factual_df = self._transform(factual_features)
 
-            # 记录转换后的列顺序
+            # Record transformed column order
             self.transformed_column_order = self.transformed_factual_df.columns.tolist()
 
-            # 如果已经有 counterfactual 数据，也进行转换
+            # If counterfactual data already exists, transform it as well
             if self.counterfactual_df is not None:
                 counterfactual_features = self.get_counterfactual_features()
                 self.transformed_counterfactual_df = self._transform(counterfactual_features)
     
     def _process_input_data(
-        self, 
-        data: Union[pd.DataFrame, np.ndarray], 
+        self,
+        data: Union[pd.DataFrame, np.ndarray],
         data_type: str,
         column_names: Optional[List[str]] = None,
         reference_df: Optional[pd.DataFrame] = None
     ) -> pd.DataFrame:
         """
-        处理输入数据，转换为 DataFrame
-        
+        Process input data and convert to DataFrame
+
         Parameters:
         -----------
         data : Union[pd.DataFrame, np.ndarray]
-            输入数据
+            Input data
         data_type : str
             'factual' or 'counterfactual'
         column_names : Optional[List[str]]
-            列名（仅 numpy 需要）
+            Column names (required only for numpy)
         reference_df : Optional[pd.DataFrame]
-            参考 DataFrame（用于验证 counterfactual）
-        
+            Reference DataFrame (for validating counterfactual)
+
         Returns:
         --------
         pd.DataFrame
-            处理后的 DataFrame
+            Processed DataFrame
         """
         if isinstance(data, pd.DataFrame):
             df = data.copy()
-            
-            # 如果是 factual，验证 label column 存在
+
+            # If factual, validate that label column exists
             if data_type == 'factual':
                 if self.label_column not in df.columns:
                     raise ValueError(
                         f"Label column '{self.label_column}' not found in factual data. "
                         f"Available columns: {df.columns.tolist()}"
                     )
-            
-            # 如果是 counterfactual，验证列一致性
+
+            # If counterfactual, validate column consistency
             elif data_type == 'counterfactual' and reference_df is not None:
                 expected_cols = reference_df.columns.tolist()
                 actual_cols = df.columns.tolist()
@@ -205,9 +206,10 @@ class COLAData:
                         f"Expected: {expected_cols}\n"
                         f"Got: {actual_cols}"
                     )
-            
+
             return df
-            
+
+
         elif isinstance(data, np.ndarray):
             if column_names is None and reference_df is None:
                 raise ValueError(
@@ -215,8 +217,8 @@ class COLAData:
                     "1. Provide column_names parameter (for factual)\n"
                     "2. Provide counterfactual using add_counterfactuals() (uses factual columns)"
                 )
-            
-            # 使用提供的列名或参考 DataFrame 的列名
+
+            # Use provided column names or reference DataFrame's column names
             if column_names is not None:
                 if len(column_names) != data.shape[1]:
                     raise ValueError(
@@ -233,7 +235,7 @@ class COLAData:
                     )
             else:
                 raise ValueError("Must provide column_names")
-            
+
             return pd.DataFrame(data, columns=columns)
         
         else:
@@ -243,37 +245,37 @@ class COLAData:
             )
     
     def add_counterfactuals(
-        self, 
+        self,
         counterfactual_data: Union[pd.DataFrame, np.ndarray],
         with_target_column: bool = True
     ):
         """
-        添加或更新反事实数据
-        
+        Add or update counterfactual data
+
         Parameters:
         -----------
         counterfactual_data : Union[pd.DataFrame, np.ndarray]
-            反事实数据
-            如果是 DataFrame：检查与 factual 的列是否一致（取决于 with_target_column）
-            如果是 numpy：使用 factual 的列名（取决于 with_target_column）
+            Counterfactual data
+            If DataFrame: checks column consistency with factual (depends on with_target_column)
+            If numpy: uses factual column names (depends on with_target_column)
         with_target_column : bool, default=False
-            如果 True：counterfactual_data 包含 target column，列数与 factual 相同
-            如果 False：counterfactual_data 不包含 target column，只有特征列
-                      此时会自动从 factual 的 target column 反转值（0->1, 1->0）并添加
-        
+            If True: counterfactual_data includes target column, same number of columns as factual
+            If False: counterfactual_data does not include target column, only feature columns
+                     In this case, will automatically reverse values from factual's target column (0->1, 1->0) and add
+
         Raises:
         -------
         ValueError
-            如果 with_target_column=False 时，factual 和 counterfactual 行数不一致
+            If with_target_column=False and factual and counterfactual have different number of rows
         """
         if with_target_column:
-            # Counterfactual 包含 target column，处理逻辑和之前一样
+            # Counterfactual includes target column, processing logic same as before
             self.counterfactual_df = self._process_input_data(
                 counterfactual_data,
                 data_type='counterfactual',
                 reference_df=self.factual_df
             )
-            # 如果指定了 numerical_features，同样把 counterfactual 的类别特征转换为字符串
+            # If numerical_features is specified, also convert counterfactual's categorical features to strings
             if self.numerical_features:
                 try:
                     categorical_cols = [
@@ -288,11 +290,11 @@ class COLAData:
                 except Exception:
                     pass
         else:
-            # Counterfactual 不包含 target column
-            # 首先处理特征数据
+            # Counterfactual does not include target column
+            # First process feature data
             if isinstance(counterfactual_data, pd.DataFrame):
                 cf_features_df = counterfactual_data.copy()
-                # 检查是否意外包含了 target column
+                # Check if target column is unexpectedly included
                 if self.label_column in cf_features_df.columns:
                     raise ValueError(
                         f"Counterfactual data contains target column '{self.label_column}', "
@@ -301,10 +303,10 @@ class COLAData:
                         f"or set with_target_column=True."
                     )
             elif isinstance(counterfactual_data, np.ndarray):
-                # numpy array，应该是特征数据
+                # numpy array, should be feature data
                 feature_columns = self.get_feature_columns()
                 if counterfactual_data.shape[1] != len(feature_columns):
-                    # 检查是否包含了 target column
+                    # Check if target column is included
                     if counterfactual_data.shape[1] == len(self.get_all_columns()):
                         raise ValueError(
                             f"Counterfactual numpy array has {counterfactual_data.shape[1]} columns, "
@@ -323,157 +325,158 @@ class COLAData:
                     f"Unsupported data type: {type(counterfactual_data)}. "
                     f"Supported types: pd.DataFrame, np.ndarray"
                 )
-            
-            # 验证行数一致
+
+
+            # Validate row count consistency
             if len(cf_features_df) != len(self.factual_df):
                 raise ValueError(
                     f"Factual and counterfactual must have the same number of rows. "
                     f"Factual: {len(self.factual_df)} rows, "
                     f"Counterfactual: {len(cf_features_df)} rows."
                 )
-            
-            # 获取 factual 的 target column 值并反转（0->1, 1->0）
+
+            # Get factual's target column values and reverse them (0->1, 1->0)
             factual_labels = self.get_factual_labels()
-            reversed_labels = 1 - factual_labels  # 反转：0->1, 1->0
-            
-            # 创建完整的 counterfactual DataFrame（包含 target column）
+            reversed_labels = 1 - factual_labels  # Reverse: 0->1, 1->0
+
+            # Create complete counterfactual DataFrame (including target column)
             self.counterfactual_df = cf_features_df.copy()
             self.counterfactual_df[self.label_column] = reversed_labels.values
-            
-            # 确保列的顺序与 factual 一致
+
+            # Ensure column order matches factual
             self.counterfactual_df = self.counterfactual_df[self.get_all_columns()]
 
-        # 如果设置了 transform_method，同时转换 counterfactual 数据
+        # If transform_method is set, also transform counterfactual data
         if self.transform_method is not None:
             counterfactual_features = self.get_counterfactual_features()
             self.transformed_counterfactual_df = self._transform(counterfactual_features)
-    
-    # ========== 列名相关方法 ==========
+
+    # ========== Column Name Related Methods ==========
     
     def get_all_columns(self) -> List[str]:
         """
-        获取所有列名（包含 label column）
-        
+        Get all column names (including label column)
+
         Returns:
         --------
         List[str]
-            所有列名的列表
+            List of all column names
         """
         return self.factual_df.columns.tolist()
-    
+
     def get_feature_columns(self) -> List[str]:
         """
-        获取特征列名（不包含 label column）
-        
+        Get feature column names (excluding label column)
+
         Returns:
         --------
         List[str]
-            特征列名的列表
+            List of feature column names
         """
         return [col for col in self.factual_df.columns if col != self.label_column]
-    
+
     def get_label_column(self) -> str:
         """
-        获取标签列名
+        Get label column name
 
         Returns:
         --------
         str
-            标签列名
+            Label column name
         """
         return self.label_column
 
     def get_numerical_features(self) -> List[str]:
         """
-        获取数值特征列表
+        Get numerical feature list
 
         Returns:
         --------
         List[str]
-            数值特征列名的列表
+            List of numerical feature column names
         """
         return self.numerical_features.copy() if self.numerical_features else []
 
     def get_categorical_features(self) -> List[str]:
         """
-        获取类别特征列表（所有非数值特征）
+        Get categorical feature list (all non-numerical features)
 
         Returns:
         --------
         List[str]
-            类别特征列名的列表
+            List of categorical feature column names
         """
         feature_columns = self.get_feature_columns()
         if not self.numerical_features:
-            # 如果没有指定 numerical_features，则假设所有特征都是数值型，返回空列表
+            # If no numerical_features specified, assume all features are numerical, return empty list
             return []
         return [col for col in feature_columns if col not in self.numerical_features]
 
     def get_transformed_feature_columns(self) -> Optional[List[str]]:
         """
-        获取转换后的特征列名
+        Get transformed feature column names
 
-        对于 ColumnTransformer，列顺序会变为 [numerical_features, categorical_features]
-        对于其他转换器，列顺序保持不变
+        For ColumnTransformer, column order becomes [numerical_features, categorical_features]
+        For other transformers, column order remains unchanged
 
         Returns:
         --------
         Optional[List[str]]
-            转换后的特征列名列表，如果未设置 transform_method 则返回 None
+            List of transformed feature column names, returns None if transform_method is not set
         """
         if self.transform_method is None:
             return None
         return self.transformed_column_order
-    
-    # ========== Factual 数据方法 ==========
+
+    # ========== Factual Data Methods ==========
     
     def get_factual_all(self) -> pd.DataFrame:
         """
-        获取包含 label column 的完整 factual DataFrame
-        
+        Get complete factual DataFrame including label column
+
         Returns:
         --------
         pd.DataFrame
-            完整的 factual 数据（包含 label column）
+            Complete factual data (including label column)
         """
         return self.factual_df.copy()
-    
+
     def get_factual_features(self) -> pd.DataFrame:
         """
-        获取不包含 label column 的 factual 特征数据
-        
+        Get factual feature data excluding label column
+
         Returns:
         --------
         pd.DataFrame
-            Factual 特征数据（不含 label column）
+            Factual feature data (excluding label column)
         """
         return self.factual_df.drop(columns=[self.label_column]).copy()
-    
+
     def get_factual_labels(self) -> pd.Series:
         """
-        获取 factual 的标签列
+        Get factual label column
 
         Returns:
         --------
         pd.Series
-            Factual 标签列
+            Factual label column
         """
         return self.factual_df[self.label_column].copy()
 
     def get_transformed_factual_features(self) -> Optional[pd.DataFrame]:
         """
-        获取转换后的 factual 特征数据
+        Get transformed factual feature data
 
         Returns:
         --------
         Optional[pd.DataFrame]
-            转换后的 factual 特征数据，如果未设置 transform_method 则返回 None
+            Transformed factual feature data, returns None if transform_method is not set
 
         Example:
         --------
         >>> data = COLAData(df, label_column='Risk', transform_method=scaler)
         >>> transformed = data.get_transformed_factual_features()
-        >>> # 用于计算 Shapley values 或其他基于转换后数据的计算
+        >>> # For calculating Shapley values or other computations based on transformed data
         """
         if self.transform_method is None:
             return None
@@ -481,66 +484,66 @@ class COLAData:
 
     def has_transformed_data(self) -> bool:
         """
-        检查是否有转换后的数据
+        Check if transformed data exists
 
         Returns:
         --------
         bool
-            如果设置了 transform_method 并有转换后的数据返回 True
+            Returns True if transform_method is set and transformed data exists
         """
         return self.transformed_factual_df is not None
-    
-    # ========== Counterfactual 数据方法 ==========
+
+    # ========== Counterfactual Data Methods ==========
     
     def get_counterfactual_all(self) -> pd.DataFrame:
         """
-        获取包含 label column 的完整 counterfactual DataFrame
-        
+        Get complete counterfactual DataFrame including label column
+
         Returns:
         --------
         pd.DataFrame
-            完整的 counterfactual 数据（包含 label column）
-            
+            Complete counterfactual data (including label column)
+
         Raises:
         -------
         ValueError
-            如果 counterfactual 数据未设置
+            If counterfactual data has not been set
         """
         if self.counterfactual_df is None:
             raise ValueError("Counterfactual data has not been set. Use add_counterfactuals() first.")
         return self.counterfactual_df.copy()
-    
+
     def get_counterfactual_features(self) -> pd.DataFrame:
         """
-        获取不包含 label column 的 counterfactual 特征数据
-        
+        Get counterfactual feature data excluding label column
+
         Returns:
         --------
         pd.DataFrame
-            Counterfactual 特征数据（不含 label column）
-            
+            Counterfactual feature data (excluding label column)
+
         Raises:
         -------
         ValueError
-            如果 counterfactual 数据未设置
+            If counterfactual data has not been set
         """
         if self.counterfactual_df is None:
             raise ValueError("Counterfactual data has not been set. Use add_counterfactuals() first.")
         return self.counterfactual_df.drop(columns=[self.label_column]).copy()
-    
+
     def get_counterfactual_labels(self) -> pd.Series:
         """
-        获取 counterfactual 的标签列
+        Get counterfactual label column
 
         Returns:
         --------
         pd.Series
-            Counterfactual 标签列
+            Counterfactual label column
 
         Raises:
         -------
         ValueError
-            如果 counterfactual 数据未设置
+            If counterfactual data has not been set
         """
         if self.counterfactual_df is None:
             raise ValueError("Counterfactual data has not been set. Use add_counterfactuals() first.")
@@ -548,120 +551,120 @@ class COLAData:
 
     def get_transformed_counterfactual_features(self) -> Optional[pd.DataFrame]:
         """
-        获取转换后的 counterfactual 特征数据
+        Get transformed counterfactual feature data
 
         Returns:
         --------
         Optional[pd.DataFrame]
-            转换后的 counterfactual 特征数据，如果未设置 transform_method 或 counterfactual 则返回 None
+            Transformed counterfactual feature data, returns None if transform_method or counterfactual is not set
 
         Raises:
         -------
         ValueError
-            如果设置了 transform_method 但 counterfactual 数据未设置
+            If transform_method is set but counterfactual data has not been set
 
         Example:
         --------
         >>> data = COLAData(df, label_column='Risk', transform_method=scaler)
         >>> data.add_counterfactuals(cf_df)
         >>> transformed_cf = data.get_transformed_counterfactual_features()
-        >>> # 用于在转换空间中计算 matching 或 Q
+        >>> # For calculating matching or Q in transformed space
         """
         if self.transform_method is None:
             return None
         if self.counterfactual_df is None:
             raise ValueError("Counterfactual data has not been set. Use add_counterfactuals() first.")
         return self.transformed_counterfactual_df.copy()
-    
-    # ========== 便捷方法 ==========
+
+    # ========== Convenience Methods ==========
     
     def has_counterfactual(self) -> bool:
         """
-        检查是否已设置 counterfactual 数据
-        
+        Check if counterfactual data has been set
+
         Returns:
         --------
         bool
-            如果有 counterfactual 数据返回 True
+            Returns True if counterfactual data exists
         """
         return self.counterfactual_df is not None
-    
+
     def get_feature_count(self) -> int:
         """
-        获取特征数量（不包含 label column）
-        
+        Get number of features (excluding label column)
+
         Returns:
         --------
         int
-            特征数量
+            Number of features
         """
         return len(self.get_feature_columns())
-    
+
     def get_sample_count(self) -> int:
         """
-        获取样本数量
-        
+        Get number of samples
+
         Returns:
         --------
         int
-            样本数量
+            Number of samples
         """
         return len(self.factual_df)
-    
-    # ========== NumPy 转换方法 ==========
+
+    # ========== NumPy Conversion Methods ==========
     
     def to_numpy_factual_features(self) -> np.ndarray:
         """
-        将 factual 特征转换为 NumPy array
-        
-        Returns:
-        --------
-        np.ndarray
-            Factual 特征矩阵
-        """
-        return self.get_factual_features().values
-    
-    def to_numpy_counterfactual_features(self) -> np.ndarray:
-        """
-        将 counterfactual 特征转换为 NumPy array
-        
-        Returns:
-        --------
-        np.ndarray
-            Counterfactual 特征矩阵
-            
-        Raises:
-        -------
-        ValueError
-            如果 counterfactual 数据未设置
-        """
-        return self.get_counterfactual_features().values
-    
-    def to_numpy_labels(self) -> np.ndarray:
-        """
-        将标签转换为 NumPy array
+        Convert factual features to NumPy array
 
         Returns:
         --------
         np.ndarray
-            标签数组
+            Factual feature matrix
+        """
+        return self.get_factual_features().values
+
+    def to_numpy_counterfactual_features(self) -> np.ndarray:
+        """
+        Convert counterfactual features to NumPy array
+
+        Returns:
+        --------
+        np.ndarray
+            Counterfactual feature matrix
+
+        Raises:
+        -------
+        ValueError
+            If counterfactual data has not been set
+        """
+        return self.get_counterfactual_features().values
+
+    def to_numpy_labels(self) -> np.ndarray:
+        """
+        Convert labels to NumPy array
+
+        Returns:
+        --------
+        np.ndarray
+            Label array
         """
         return self.get_factual_labels().values
 
     def to_numpy_transformed_factual_features(self) -> Optional[np.ndarray]:
         """
-        将转换后的 factual 特征转换为 NumPy array
+        Convert transformed factual features to NumPy array
 
         Returns:
         --------
         Optional[np.ndarray]
-            转换后的 factual 特征矩阵，如果未设置 transform_method 则返回 None
+            Transformed factual feature matrix, returns None if transform_method is not set
 
         Example:
         --------
         >>> data = COLAData(df, label_column='Risk', transform_method=scaler)
         >>> X_transformed = data.to_numpy_transformed_factual_features()
-        >>> # 在转换空间中计算 Shapley values
+        >>> # Calculate Shapley values in transformed space
         """
         if self.transform_method is None:
             return None
@@ -669,53 +672,53 @@ class COLAData:
 
     def to_numpy_transformed_counterfactual_features(self) -> Optional[np.ndarray]:
         """
-        将转换后的 counterfactual 特征转换为 NumPy array
+        Convert transformed counterfactual features to NumPy array
 
         Returns:
         --------
         Optional[np.ndarray]
-            转换后的 counterfactual 特征矩阵，如果未设置 transform_method 或 counterfactual 则返回 None
+            Transformed counterfactual feature matrix, returns None if transform_method or counterfactual is not set
 
         Raises:
         -------
         ValueError
-            如果设置了 transform_method 但 counterfactual 数据未设置
+            If transform_method is set but counterfactual data has not been set
 
         Example:
         --------
         >>> data = COLAData(df, label_column='Risk', transform_method=scaler)
         >>> data.add_counterfactuals(cf_df)
         >>> CF_transformed = data.to_numpy_transformed_counterfactual_features()
-        >>> # 在转换空间中计算 matching 距离
+        >>> # Calculate matching distance in transformed space
         """
         if self.transform_method is None:
             return None
         if self.counterfactual_df is None:
             raise ValueError("Counterfactual data has not been set. Use add_counterfactuals() first.")
         return self.transformed_counterfactual_df.values
-    
-    # ========== 信息方法 ==========
+
+    # ========== Information Methods ==========
     
     def __repr__(self) -> str:
-        """字符串表示"""
+        """String representation"""
         cf_info = f", counterfactual: {len(self.counterfactual_df)} rows" if self.counterfactual_df is not None else ", no counterfactual"
         return (
             f"COLAData(factual: {len(self.factual_df)} rows, "
             f"features: {self.get_feature_count()}, "
             f"label: {self.label_column}{cf_info})"
         )
-    
+
     def __str__(self) -> str:
         return self.__repr__()
-    
+
     def summary(self) -> dict:
         """
-        获取数据摘要信息
+        Get data summary information
 
         Returns:
         --------
         dict
-            包含数据摘要的字典
+            Dictionary containing data summary
         """
         info = {
             'factual_samples': len(self.factual_df),
@@ -736,26 +739,26 @@ class COLAData:
 
         return info
 
-    # ========== 数据转换方法 ==========
+    # ========== Data Transformation Methods ==========
 
     def _transform(self, data: pd.DataFrame) -> pd.DataFrame:
         """
-        应用数据转换（使用 transform_method）
+        Apply data transformation (using transform_method)
 
         Parameters:
         -----------
         data : pd.DataFrame
-            需要转换的数据（只包含特征列，不含 label column）
+            Data to transform (only feature columns, excluding label column)
 
         Returns:
         --------
         pd.DataFrame
-            转换后的数据
+            Transformed data
 
         Raises:
         -------
         ValueError
-            如果未设置 transform_method
+            If transform_method is not set
 
         Example:
         --------
@@ -772,24 +775,24 @@ class COLAData:
         if self.transform_method is None:
             raise ValueError("No transform_method is set. Cannot transform data.")
 
-        # 应用转换
-        # 对于 ColumnTransformer，需要传入 DataFrame 以便根据列名选择特征
+        # Apply transformation
+        # For ColumnTransformer, pass DataFrame to select features based on column names
         if SKLEARN_AVAILABLE and isinstance(self.transform_method, ColumnTransformer):
-            transformed_values = self.transform_method.transform(data)  # 传入 DataFrame
+            transformed_values = self.transform_method.transform(data)  # Pass DataFrame
 
-            # ColumnTransformer 的输出顺序是 [numerical_features, categorical_features]
-            # 而不是原始数据的列顺序
+            # ColumnTransformer output order is [numerical_features, categorical_features]
+            # Not the original data column order
             transformed_column_order = self.numerical_features + self.get_categorical_features()
 
             transformed_df = pd.DataFrame(
                 transformed_values,
-                columns=transformed_column_order,  # 使用转换后的列顺序
+                columns=transformed_column_order,  # Use transformed column order
                 index=data.index
             )
         else:
-            transformed_values = self.transform_method.transform(data.values)  # 传入 numpy array
+            transformed_values = self.transform_method.transform(data.values)  # Pass numpy array
 
-            # 创建 DataFrame，保持原始列名和索引
+            # Create DataFrame, preserve original column names and index
             transformed_df = pd.DataFrame(
                 transformed_values,
                 columns=data.columns,
@@ -800,46 +803,46 @@ class COLAData:
 
     def _inverse_transform(self, data: pd.DataFrame) -> pd.DataFrame:
         """
-        应用逆转换（使用 transform_method 的 inverse_transform）
+        Apply inverse transformation (using transform_method's inverse_transform)
 
         Parameters:
         -----------
         data : pd.DataFrame
-            需要逆转换的数据（只包含特征列，不含 label column）
+            Data to inverse transform (only feature columns, excluding label column)
 
         Returns:
         --------
         pd.DataFrame
-            逆转换后的数据
+            Inverse transformed data
 
         Raises:
         -------
         ValueError
-            如果未设置 transform_method
+            If transform_method is not set
 
         Example:
         --------
-        >>> # 假设数据经过了标准化
+        >>> # Assuming data has been standardized
         >>> original = data._inverse_transform(transformed_data)
 
         Notes:
         ------
-        对于 ColumnTransformer（包含 OrdinalEncoder 等分类编码器），此方法会智能处理：
-        - 自动检测 ColumnTransformer 并分离数值和分类特征
-        - 对分类特征进行四舍五入后再逆转换，避免浮点数错误
-        - 正确重组特征顺序
+        For ColumnTransformer (including categorical encoders like OrdinalEncoder), this method intelligently handles:
+        - Automatically detects ColumnTransformer and separates numerical and categorical features
+        - Rounds categorical features before inverse transformation to avoid floating point errors
+        - Correctly reorganizes feature order
         """
         if self.transform_method is None:
             raise ValueError("No transform_method is set. Cannot inverse transform data.")
 
-        # 检查是否是 ColumnTransformer
+        # Check if it's a ColumnTransformer
         if SKLEARN_AVAILABLE and isinstance(self.transform_method, ColumnTransformer):
             return self._inverse_transform_column_transformer(data)
         else:
-            # 标准逆转换（适用于 StandardScaler 等简单转换器）
+            # Standard inverse transformation (for simple transformers like StandardScaler)
             inverse_transformed_values = self.transform_method.inverse_transform(data.values)
 
-            # 创建 DataFrame，保持列名和索引
+            # Create DataFrame, preserve column names and index
             inverse_transformed_df = pd.DataFrame(
                 inverse_transformed_values,
                 columns=data.columns,
@@ -850,132 +853,132 @@ class COLAData:
 
     def _inverse_transform_column_transformer(self, data: pd.DataFrame) -> pd.DataFrame:
         """
-        专门处理 ColumnTransformer 的逆转换
+        Specifically handles inverse transformation for ColumnTransformer
 
-        此方法解决了 ColumnTransformer 逆转换分类特征时的浮点数问题：
-        - 分离数值和分类特征
-        - 对分类特征进行四舍五入（如果需要）
-        - 分别逆转换后重组
+        This method solves the floating point issue when ColumnTransformer inverse transforms categorical features:
+        - Separates numerical and categorical features
+        - Rounds categorical features (if needed)
+        - Inverse transforms separately then recombines
 
-        支持：
-        - 简单转换器（StandardScaler, OrdinalEncoder）
-        - Pipeline 转换器（如 OrdinalEncoder + StandardScaler）
+        Supports:
+        - Simple transformers (StandardScaler, OrdinalEncoder)
+        - Pipeline transformers (e.g., OrdinalEncoder + StandardScaler)
 
         Parameters:
         -----------
         data : pd.DataFrame
-            转换后的数据
+            Transformed data
 
         Returns:
         --------
         pd.DataFrame
-            逆转换后的数据
+            Inverse transformed data
         """
         transformer = self.transform_method
 
-        # 获取各个子转换器
+        # Get each sub-transformer
         num_transformer = transformer.named_transformers_.get('num')
         cat_transformer = transformer.named_transformers_.get('cat')
 
         n_num = len(self.numerical_features)
         n_cat = len(self.get_categorical_features())
 
-        # 将数据转为 numpy array
+        # Convert data to numpy array
         X_transformed = data.values
 
-        # 分离数值和分类特征
+        # Separate numerical and categorical features
         results = []
         feature_names = []
 
-        # 处理数值特征
+        # Process numerical features
         if n_num > 0 and num_transformer is not None:
             X_num_scaled = X_transformed[:, :n_num]
             X_num_original = num_transformer.inverse_transform(X_num_scaled)
             results.append(X_num_original)
             feature_names.extend(self.numerical_features)
 
-        # 处理分类特征
+        # Process categorical features
         if n_cat > 0 and cat_transformer is not None:
             X_cat_encoded = X_transformed[:, n_num:n_num + n_cat]
 
-            # 检查 cat_transformer 是否是 Pipeline
+            # Check if cat_transformer is a Pipeline
             is_pipeline = hasattr(cat_transformer, 'named_steps')
 
             if is_pipeline:
-                # Pipeline 情况：通常是 OrdinalEncoder -> StandardScaler
-                # 我们需要手动逆转换，不能使用 Pipeline.inverse_transform()
-                # 因为 Pipeline.inverse_transform() 会自动执行所有步骤，
-                # 导致直接返回字符串，无法插入 round/clip 逻辑
+                # Pipeline case: typically OrdinalEncoder -> StandardScaler
+                # We need to manually inverse transform, cannot use Pipeline.inverse_transform()
+                # Because Pipeline.inverse_transform() automatically executes all steps,
+                # directly returning strings, unable to insert round/clip logic
                 #
-                # 正确步骤：
-                # 1. StandardScaler.inverse_transform() → 得到浮点数编码
-                # 2. round + clip → 得到有效的整数编码
-                # 3. OrdinalEncoder.inverse_transform() → 得到原始字符串
+                # Correct steps:
+                # 1. StandardScaler.inverse_transform() → get floating point encoding
+                # 2. round + clip → get valid integer encoding
+                # 3. OrdinalEncoder.inverse_transform() → get original strings
 
-                # 获取 Pipeline 中的各个步骤
+                # Get each step in the Pipeline
                 ordinal_encoder = None
                 scaler = None
 
                 for step_name, step_transformer in cat_transformer.named_steps.items():
                     if hasattr(step_transformer, 'categories_'):
                         ordinal_encoder = step_transformer
-                    elif hasattr(step_transformer, 'mean_'):  # StandardScaler 有 mean_ 属性
+                    elif hasattr(step_transformer, 'mean_'):  # StandardScaler has mean_ attribute
                         scaler = step_transformer
 
-                # 第一步：StandardScaler 逆转换（从标准化空间 → 编码空间）
+                # Step 1: StandardScaler inverse transform (from standardized space → encoding space)
                 if scaler is not None:
                     X_cat_after_scaler = scaler.inverse_transform(X_cat_encoded)
                 else:
-                    # 如果没有 scaler，直接使用原始数据
+                    # If no scaler, use original data directly
                     X_cat_after_scaler = X_cat_encoded
 
-                # 第二步：四舍五入并限制在有效范围内
+                # Step 2: Round and limit to valid range
                 X_cat_rounded = np.round(X_cat_after_scaler)
 
                 if ordinal_encoder is not None:
-                    # 限制编码值在有效范围内
+                    # Limit encoding values to valid range
                     for i in range(X_cat_rounded.shape[1]):
                         n_categories = len(ordinal_encoder.categories_[i])
                         X_cat_rounded[:, i] = np.clip(X_cat_rounded[:, i], 0, n_categories - 1)
 
-                    # 第三步：OrdinalEncoder 逆转换（从编码 → 原始字符串）
+                    # Step 3: OrdinalEncoder inverse transform (from encoding → original strings)
                     X_cat_original = ordinal_encoder.inverse_transform(X_cat_rounded)
                 else:
-                    # 如果没有 OrdinalEncoder，直接使用 rounded 结果
+                    # If no OrdinalEncoder, directly use rounded result
                     X_cat_original = X_cat_rounded
             else:
-                # 非 Pipeline 情况：直接是 OrdinalEncoder
-                # 对分类特征取整，避免浮点数导致的逆转换错误
+                # Non-Pipeline case: directly OrdinalEncoder
+                # Round categorical features to avoid floating point inverse transform errors
                 X_cat_encoded_rounded = np.round(X_cat_encoded)
 
-                # 限制编码值在有效范围内（OrdinalEncoder 的编码范围是 0 到 n_categories-1）
+                # Limit encoding values to valid range (OrdinalEncoder encoding range is 0 to n_categories-1)
                 if hasattr(cat_transformer, 'categories_'):
                     for i in range(X_cat_encoded_rounded.shape[1]):
                         n_categories = len(cat_transformer.categories_[i])
                         X_cat_encoded_rounded[:, i] = np.clip(X_cat_encoded_rounded[:, i], 0, n_categories - 1)
 
-                # 逆转换分类特征
+                # Inverse transform categorical features
                 X_cat_original = cat_transformer.inverse_transform(X_cat_encoded_rounded)
 
             results.append(X_cat_original)
             feature_names.extend(self.get_categorical_features())
 
-        # 合并结果
+        # Merge results
         if len(results) == 0:
             raise ValueError("No features to inverse transform in ColumnTransformer")
 
         X_original = np.hstack(results) if len(results) > 1 else results[0]
 
-        # 创建 DataFrame
-        # 注意：由于 _transform() 已经确保了列顺序是 [numerical_features, categorical_features]
-        # 这里 feature_names 的顺序也是 [numerical_features, categorical_features]
+        # Create DataFrame
+        # Note: Since _transform() already ensures column order is [numerical_features, categorical_features]
+        # feature_names order here is also [numerical_features, categorical_features]
         inverse_transformed_df = pd.DataFrame(
             X_original,
             columns=feature_names,
             index=data.index
         )
 
-        # 重新排列列顺序，使其与原始数据的列顺序一致
+        # Reorder columns to match original data column order
         original_feature_columns = self.get_feature_columns()
         inverse_transformed_df = inverse_transformed_df[original_feature_columns]
 

@@ -12,7 +12,7 @@ from .base_matcher import BaseMatcher
 
 
 #########################################
-# 工具函数：DataFrame 化、数值化与缺失填充
+# Utility Functions: DataFrame conversion, numeralization and missing value imputation
 #########################################
 def _ensure_df(x, prefix: str = "x") -> pd.DataFrame:
     if isinstance(x, pd.DataFrame):
@@ -22,7 +22,7 @@ def _ensure_df(x, prefix: str = "x") -> pd.DataFrame:
     return pd.DataFrame(x, columns=cols)
 
 def _to_numeric_and_impute(df: pd.DataFrame) -> pd.DataFrame:
-    """将各列转为数值（无法转换的置 NaN），再用列中位数填充 NaN。"""
+    """Convert each column to numeric (set NaN for non-convertible values), then impute NaN with column median."""
     out = df.apply(lambda col: col if np.issubdtype(col.dtype, np.number)
                    else pd.to_numeric(col, errors="coerce"))
     med = out.median(numeric_only=True)
@@ -31,7 +31,7 @@ def _to_numeric_and_impute(df: pd.DataFrame) -> pd.DataFrame:
 
 
 #########################################
-# 诊断：分层内处理/对照计数（显式 observed=True）
+# Diagnostics: Treatment/control count within strata (explicit observed=True)
 #########################################
 def strata_diagnostics(X_coarse: pd.DataFrame, T_name: str) -> pd.DataFrame:
     cols_no_T = [c for c in X_coarse.columns if c != T_name]
@@ -51,15 +51,15 @@ def strata_diagnostics(X_coarse: pd.DataFrame, T_name: str) -> pd.DataFrame:
 
 
 #########################################
-# 主类：不严格同层 + OT 补齐
+# Main Class: Non-strict same-stratum + OT补齐
 #########################################
 class CounterfactualSoftCEMPolicy(BaseMatcher):
     """
-    流程：
-    1) 合并事实/反事实，自变量 + T 列；coarsen(X_all, T, "l1") 得到粗化表；
-    2) 按“除 T 外所有粗化列”定义 strata，同层内对反事实均匀分配概率；
-    3) 对未匹配行（同层没有任何反事实者），使用 OT 在全局反事实上补齐；
-    4) 仅对非零行做行归一化，避免除零告警。
+    Pipeline:
+    1) Merge factual/counterfactual, covariates + T column; coarsen(X_all, T, "l1") to get coarsened table;
+    2) Define strata by "all coarsened columns except T", assign uniform probability to counterfactuals within same stratum;
+    3) For unmatched rows (same stratum has no counterfactuals), use OT to fill from global counterfactuals;
+    4) Only normalize rows with non-zero sum to avoid division by zero warnings.
     """
 
     def __init__(self,
@@ -74,17 +74,17 @@ class CounterfactualSoftCEMPolicy(BaseMatcher):
         Parameters
         ----------
         x_factual, x_counterfactual : array-like or DataFrame
-            协变量矩阵（不包含 outcome）。
+            Covariate matrix (excluding outcome).
         treatment_name : str
-            处理标记列名，传入 coarsen/match/L1。
+            Treatment indicator column name, passed to coarsen/match/L1.
         scale : bool
-            是否在构造 OT 成本前对协变量做 StandardScaler 标准化。
+            Whether to apply StandardScaler normalization to covariates before constructing OT cost.
         use_sinkhorn : bool
-            True 则用 Sinkhorn-OT（可 GPU/更稳健），False 用 EMD。
+            If True, use Sinkhorn-OT (GPU-compatible/more robust), if False use EMD.
         sinkhorn_eps : float
-            Sinkhorn 的熵正则参数。
+            Entropy regularization parameter for Sinkhorn.
         cost_clip_quantile : float or None
-            对 OT 成本矩阵按分位数截断（如 0.9），抑制极远距离外推；None 则不截断。
+            Clip OT cost matrix by quantile (e.g., 0.9) to suppress extreme distance extrapolation; None means no clipping.
         """
         super().__init__(x_factual, x_counterfactual)
         self.treatment_name = treatment_name
@@ -94,25 +94,25 @@ class CounterfactualSoftCEMPolicy(BaseMatcher):
         self.cost_clip_quantile = cost_clip_quantile
 
     ############################
-    # 核心：构造粗化表与 strata id
+    # Core: Construct coarsened table and strata id
     ############################
     def _coarsen_and_strata(self,
                             xf: pd.DataFrame,
                             xr: pd.DataFrame) -> Tuple[pd.DataFrame, np.ndarray, int, int]:
-        # 对齐列（并集 + 补缺）
+        # Align columns (union + fill missing)
         all_cols = sorted(set(xf.columns).union(set(xr.columns)))
         xf = xf.reindex(columns=all_cols)
         xr = xr.reindex(columns=all_cols)
 
-        # 拼接并加 T
+        # Concatenate and add T
         X_all = pd.concat([xf, xr], axis=0, ignore_index=True)
         T = np.r_[np.zeros(len(xf), dtype=int), np.ones(len(xr), dtype=int)]
         X_all[self.treatment_name] = T
 
-        # 粗化
+        # Coarsen
         Xc = coarsen(X_all, self.treatment_name, "l1")
 
-        # strata id（除 T 外所有粗化列）
+        # strata id (all coarsened columns except T)
         cols_no_T = [c for c in Xc.columns if c != self.treatment_name]
         tuples = pd.MultiIndex.from_frame(Xc[cols_no_T].astype("object"))
         strata_ids, _ = pd.factorize(tuples)
@@ -120,7 +120,7 @@ class CounterfactualSoftCEMPolicy(BaseMatcher):
         return Xc, strata_ids, len(xf), len(xr)
 
     ############################
-    # 同层优先的均匀分配（不归一）
+    # Same-stratum priority uniform allocation (without normalization)
     ############################
     def _same_stratum_assign(self,
                              strata_ids: np.ndarray,
@@ -128,7 +128,7 @@ class CounterfactualSoftCEMPolicy(BaseMatcher):
                              n_r: int,
                              T: np.ndarray) -> np.ndarray:
         p = np.zeros((n_f, n_r), dtype=float)
-        # 事实部分索引：0..n_f-1；反事实部分索引：n_f..n_f+n_r-1
+        # Factual part indices: 0..n_f-1; Counterfactual part indices: n_f..n_f+n_r-1
         for sid in np.unique(strata_ids):
             idx_in_s = np.where(strata_ids == sid)[0]
             f_in_s = [i for i in idx_in_s if (i < n_f) and (T[i] == 0)]
@@ -142,7 +142,7 @@ class CounterfactualSoftCEMPolicy(BaseMatcher):
         return p
 
     ############################
-    # 构造数值特征矩阵（含标准化）
+    # Construct numerical feature matrix (with standardization)
     ############################
     def _build_numeric_arrays(self,
                               xf: pd.DataFrame,
@@ -162,7 +162,7 @@ class CounterfactualSoftCEMPolicy(BaseMatcher):
         return Xf, Xr
 
     ############################
-    # OT 补齐未匹配行（逐行 EMD / Sinkhorn）
+    # Fill unmatched rows with OT (row-wise EMD / Sinkhorn)
     ############################
     def _fill_unmatched_rows_with_ot(self,
                                      p: np.ndarray,
@@ -174,7 +174,7 @@ class CounterfactualSoftCEMPolicy(BaseMatcher):
         if len(unmatched) == 0:
             return p
 
-        # 成本矩阵（可按分位数截断）
+        # Cost matrix (can be clipped by quantile)
         C = ot.dist(Xf[unmatched], Xr, metric="euclidean")  # (n_unmatched, n_r)
         if self.cost_clip_quantile is not None:
             finite_C = C[np.isfinite(C)]
@@ -182,10 +182,10 @@ class CounterfactualSoftCEMPolicy(BaseMatcher):
                 thr = np.quantile(finite_C, self.cost_clip_quantile)
                 C = np.minimum(C, thr)
 
-        # 逐行求运输计划并回填
+        # Solve transport plan row-by-row and fill back
         for k, i in enumerate(unmatched):
-            a = np.array([1.0])             # 该事实行的质量 1
-            b = np.ones(n_r) / n_r          # 目标均匀（也可改为先验列权重）
+            a = np.array([1.0])             # Mass 1 for this factual row
+            b = np.ones(n_r) / n_r          # Target uniform (can be changed to prior column weights)
             c_i = C[k:k+1, :]               # (1, n_r)
 
             if self.use_sinkhorn:
@@ -198,11 +198,11 @@ class CounterfactualSoftCEMPolicy(BaseMatcher):
             if s > 0 and np.isfinite(s):
                 p[i, :] = gi / s
             else:
-                p[i, :] = np.ones(n_r) / n_r  # 兜底
+                p[i, :] = np.ones(n_r) / n_r  # Fallback
         return p
 
     ############################
-    # 安全的行归一化（仅对非零行）
+    # Safe row normalization (only for non-zero rows)
     ############################
     @staticmethod
     def _row_normalize_safe(p: np.ndarray) -> np.ndarray:
@@ -213,30 +213,30 @@ class CounterfactualSoftCEMPolicy(BaseMatcher):
         return out
 
     #########################################################
-    # 外部调用：计算事实-反事实概率矩阵（非严格同层 + OT）
+    # External call: Compute factual-counterfactual probability matrix (non-strict same-stratum + OT)
     #########################################################
     def compute_prob_matrix_of_factual_and_counterfactual(self) -> np.ndarray:
-        # 1) 统一为 DataFrame
+        # 1) Unify to DataFrame
         xf = _ensure_df(self.x_factual, prefix="f")
         xr = _ensure_df(self.x_counterfactual, prefix="r")
 
-        # 2) 粗化 + strata
+        # 2) Coarsen + strata
         Xc, strata_ids, n_f, n_r = self._coarsen_and_strata(xf, xr)
         T = Xc[self.treatment_name].to_numpy()
 
-        # 3) 同层优先均匀分配（此时未匹配行和为 0）
+        # 3) Same-stratum priority uniform allocation (unmatched rows sum to 0 at this point)
         p = self._same_stratum_assign(strata_ids, n_f, n_r, T)
 
-        # 4) 为 OT 构造数值特征（含缺失填充与可选标准化）
+        # 4) Construct numerical features for OT (with missing imputation and optional standardization)
         Xf, Xr = self._build_numeric_arrays(xf, xr)
 
-        # 5) 用 OT 补齐未匹配行（逐行），然后安全归一化
+        # 5) Fill unmatched rows with OT (row-wise), then safe normalize
         p = self._fill_unmatched_rows_with_ot(p, Xf, Xr)
         p = self._row_normalize_safe(p)
         return p
 
     #########################################################
-    # 基线不平衡评估（可选，用于检查粗化效果）
+    # Baseline imbalance assessment (optional, for checking coarsening effect)
     #########################################################
     def baseline_imbalance(self):
         xf = _ensure_df(self.x_factual, prefix="f")
@@ -256,11 +256,11 @@ class CounterfactualSoftCEMPolicy(BaseMatcher):
         return l1_unw, l1_w, w
 
     #########################################################
-    # 分层诊断（可选，用于了解共同支持情况）
+    # Strata diagnostics (optional, for understanding common support situation)
     #########################################################
     def strata_report(self) -> pd.DataFrame:
         xf = _ensure_df(self.x_factual, prefix="f")
         xr = _ensure_df(self.x_counterfactual, prefix="r")
-        # 复用粗化
+        # Reuse coarsening
         Xc, _, _, _ = self._coarsen_and_strata(xf, xr)
         return strata_diagnostics(Xc, self.treatment_name)
