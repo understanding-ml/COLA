@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from xai_cola.ml_model_interface import Model
+from xai_cola.ce_sparsifier.models import Model
 
 class TestModelInterface:
     """Tests for Model interface."""
@@ -19,7 +19,6 @@ class TestModelInterface:
     
     def test_model_predict(self, sample_model, sample_data):
         """Test model prediction."""
-        from sklearn.linear_model import LogisticRegression
         
         X = sample_data.drop(columns=['target'])
         y = sample_data['target']
@@ -35,7 +34,6 @@ class TestModelInterface:
     
     def test_model_predict_proba(self, sample_model, sample_data):
         """Test model prediction probabilities."""
-        from sklearn.linear_model import LogisticRegression
         
         X = sample_data.drop(columns=['target'])
         y = sample_data['target']

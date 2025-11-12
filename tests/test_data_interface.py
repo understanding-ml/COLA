@@ -3,7 +3,7 @@
 import pytest
 import numpy as np
 import pandas as pd
-from xai_cola.data import COLAData
+from xai_cola.ce_sparsifier.data import COLAData
 
 
 class TestCOLAData:
