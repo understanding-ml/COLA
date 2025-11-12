@@ -4,9 +4,9 @@
 from pathlib import Path
 from setuptools import setup, find_packages
 
-# Read the contents of README.rst file
+# Read the contents of README.md file
 this_directory = Path(__file__).parent
-long_description = (this_directory / "README.rst").read_text(encoding="utf-8")
+long_description = (this_directory / "README.md").read_text(encoding="utf-8")
 
 # Read requirements from requirements.txt
 requirements = []
@@ -25,7 +25,7 @@ setup(
     version="0.1.5",
     description="COunterfactual explanations with Limited Actions (COLA)",
     long_description=long_description,
-    long_description_content_type="text/x-rst",
+    long_description_content_type="text/markdown",
     author="Lin Zhu, Lei You",
     author_email="s232291@student.dtu.dk",
     url="https://github.com/understanding-ml/COLA",
