@@ -135,14 +135,16 @@ class **DisCount** (ml_model)
 
    .. math::
 
-      \\min_x Q = (1-\\eta) Q_x(x, \\mu) + \\eta Q_y(x, \\nu)
+      \min_x Q = (1-\eta) Q_x(x, \mu) + \eta Q_y(x, \nu)
 
    subject to:
 
    .. math::
 
-      \\text{SW}_2(x, x') &\\leq U_1 \\\\
-      \\text{W}_2(b(x), y^*) &\\leq U_2
+      \begin{aligned}
+      \text{SW}_2(x, x') &\leq U_1 \\
+      \text{W}_2(b(x), y^*) &\leq U_2
+      \end{aligned}
 
    where:
 
