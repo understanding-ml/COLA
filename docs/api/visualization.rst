@@ -7,223 +7,391 @@ Visualization API
 Overview
 ========
 
-COLA provides comprehensive visualization functions for analyzing and presenting
-counterfactual refinement results. All functions are stateless and can be used
-independently or through the COLA class methods.
+COLA provides a suite of pure functions for visualizing counterfactual refinement results.
+These functions are stateless and can be used independently, but **it is recommended to call
+them through COLA class methods**, as the COLA class automatically manages the required data.
 
-**Available Visualizations:**
+**Recommended Usage:**
+
+Call through COLA class methods (see :doc:`cola` documentation):
+
+- ``cola.heatmap_binary()`` - Binary heatmap
+- ``cola.heatmap_direction()`` - Direction heatmap
+- ``cola.stacked_bar_chart()`` - Stacked bar chart
+- ``cola.highlight_changes_comparison()`` - Comparison highlight table
+- ``cola.highlight_changes_final()`` - Final value highlight table
+- ``cola.diversity()`` - Diversity analysis
+
+**Direct Usage:**
+
+Advanced users can import functions directly from this module for greater flexibility.
+This documentation describes the signatures and parameters of these low-level functions.
+
+**Available Visualization Types:**
 
 1. **Highlighted DataFrames** - Interactive tables with color-coded changes
 2. **Direction Heatmaps** - Show which features increased/decreased
 3. **Binary Heatmaps** - Show which features changed (yes/no)
-4. **Stacked Bar Charts** - Compare action counts before/after refinement
+4. **Stacked Bar Charts** - Compare feature change counts before/after refinement
 5. **Diversity Analysis** - Explore alternative minimal feature combinations
+
+Module contents
+===============
 
 Highlighted DataFrames
 ======================
 
-Functions for creating styled pandas DataFrames with highlighted changes.
+function **highlight_changes_comparison** (factual_df, counterfactual_df, refined_counterfactual_df, label_column)
 
-.. autofunction:: highlight_changes_final
+   Pure function to highlight changes with comparison format (old -> new).
 
-   Generate highlighted DataFrames showing only final values.
-
-   **Color Coding:**
-
-   - Blue background: Feature value increased
-   - Orange background: Feature value decreased
-   - White background: Unchanged
-
-   **Returns:** Tuple of (factual_styled, ce_styled, ace_styled)
-
-   **Best for:** Jupyter notebooks, HTML reports
-
-.. autofunction:: highlight_changes_comparison
-
-   Generate highlighted DataFrames with "old → new" format.
-
-   Shows both original and new values for changed features.
-
-   **Format:** ``25 → 30`` for numerical, ``No → Yes`` for categorical
-
-   **Returns:** Tuple of (factual_styled, ce_styled, ace_styled)
-
-   **Best for:** Detailed change analysis, presentations
-
-.. autofunction:: highlight_differences
-
-   Low-level helper function for highlighting differences.
-
-   Used internally by other highlight functions.
-
-Heatmaps
-========
-
-Direction Heatmap
------------------
-
-.. autofunction:: generate_direction_heatmap
-
-   Generate heatmap showing direction of feature changes.
+   This function displays changes in the format "factual_value -> counterfactual_value"
+   to show both the original and modified values side by side.
 
    **Parameters:**
+      * **factual_df** (*pd.DataFrame*) -- Original factual data
+      * **counterfactual_df** (*pd.DataFrame*) -- Full counterfactual data (corresponding counterfactual)
+      * **refined_counterfactual_df** (*pd.DataFrame*) -- Action-limited counterfactual data
+      * **label_column** (*str*) -- Name of the target/label column
 
-   - **factual_df** (pd.DataFrame): Factual data
-   - **cf_df** (pd.DataFrame): Original counterfactual data
-   - **ace_df** (pd.DataFrame): Refined counterfactual data
-   - **label_column** (str): Name of label column
-   - **numerical_features** (List[str], optional): List of numerical features
-   - **save_path** (str, optional): Directory to save figures
-   - **save_mode** (str): "combined", "separate", or "both"
-   - **show_axis_labels** (bool): Whether to show feature/instance names
-   - **figsize** (Tuple[int, int], optional): Figure size
-   - **dpi** (int, optional): Resolution
+   **Returns:**
+      * **factual_df** (*pd.DataFrame*) -- Original factual data (copy)
+      * **ce_style** (*pandas.io.formats.style.Styler*) -- Styled DataFrame showing factual → full counterfactual
+      * **ace_style** (*pandas.io.formats.style.Styler*) -- Styled DataFrame showing factual → action-limited counterfactual
+
+   **Return type:**
+      tuple
 
    **Color Coding:**
 
-   - Light blue (#56B4E9): Numerical feature increased
-   - Light cyan (#7FCDCD): Numerical feature decreased
-   - Peru (#CD853F): Categorical feature changed
-   - Black: Label column flip
-   - Light grey: Unchanged
+   - Yellow background: Feature value changed (except label column)
+   - Light gray background + black border: Label column changed
+   - No highlight: Value unchanged
 
-   **Returns:** Tuple[Figure, Figure] or Figure depending on save_mode
+   **Note:**
 
-.. autofunction:: heatmap_direction_changes
+   Typically called through ``cola.highlight_changes_comparison()`` method, which automatically provides the required data.
 
-   Helper function for computing direction changes.
+   **Example:**
 
-   Used internally by generate_direction_heatmap.
+   .. code-block:: python
+
+      from xai_cola.ce_sparsifier.visualization import highlight_changes_comparison
+
+      factual_copy, ce_style, ace_style = highlight_changes_comparison(
+          factual_df=factual,
+          counterfactual_df=counterfactual,
+          refined_counterfactual_df=refined_cf,
+          label_column='Risk'
+      )
+
+      # Display in Jupyter
+      display(ce_style)
+      display(ace_style)
+
+function **highlight_changes_final** (factual_df, counterfactual_df, refined_counterfactual_df, label_column)
+
+   Pure function to highlight changes showing only the final values.
+
+   This function displays only the final counterfactual values without showing
+   the "factual -> counterfactual" format, making it cleaner for presentation.
+
+   **Parameters:**
+      * **factual_df** (*pd.DataFrame*) -- Original factual data
+      * **counterfactual_df** (*pd.DataFrame*) -- Full counterfactual data (corresponding counterfactual)
+      * **refined_counterfactual_df** (*pd.DataFrame*) -- Action-limited counterfactual data
+      * **label_column** (*str*) -- Name of the target/label column
+
+   **Returns:**
+      * **factual_df** (*pd.DataFrame*) -- Original factual data (copy)
+      * **ce_style** (*pandas.io.formats.style.Styler*) -- Styled DataFrame showing only full counterfactual values
+      * **ace_style** (*pandas.io.formats.style.Styler*) -- Styled DataFrame showing only action-limited counterfactual values
+
+   **Return type:**
+      tuple
+
+   **Color Coding:**
+
+   Same as ``highlight_changes_comparison()``:
+
+   - Yellow background: Feature value changed
+   - Light gray background + black border: Label column changed
+   - No highlight: Value unchanged
+
+   **Note:**
+
+   Typically called through ``cola.highlight_changes_final()`` method.
+
+function **highlight_differences** (data, df_a, df_b, target_name)
+
+   Low-level pure function to highlight differences between two DataFrames.
+
+   Creates a style DataFrame with background colors and borders to highlight
+   differences between the two input DataFrames. Used internally by other
+   highlight functions.
+
+   **Parameters:**
+      * **data** (*pd.DataFrame*) -- The DataFrame to style (should match df_a and df_b structure)
+      * **df_a** (*pd.DataFrame*) -- First DataFrame for comparison (typically factual)
+      * **df_b** (*pd.DataFrame*) -- Second DataFrame for comparison (typically counterfactual)
+      * **target_name** (*str*) -- Name of the target/label column
+
+   **Returns:**
+      Style DataFrame with CSS styling strings for highlighting differences
+
+   **Return type:**
+      pd.DataFrame
 
 Binary Heatmap
---------------
+==============
 
-.. autofunction:: generate_binary_heatmap
+function **generate_binary_heatmap** (factual_df, counterfactual_df, refined_counterfactual_df, label_column, save_path=None, save_mode='combined', show_axis_labels=True)
 
-   Generate binary heatmap showing which features changed.
+   Pure function to generate binary change heatmap visualizations.
+
+   This function generates heatmaps that show binary changes: whether a value
+   changed (red) or remained unchanged (lightgrey).
 
    **Parameters:**
+      * **factual_df** (*pd.DataFrame*) -- Original factual data
+      * **counterfactual_df** (*pd.DataFrame*) -- Full counterfactual data (corresponding counterfactual)
+      * **refined_counterfactual_df** (*pd.DataFrame*) -- Action-limited counterfactual data
+      * **label_column** (*str*) -- Name of the target/label column
+      * **save_path** (*str**, **optional*) -- Path to save the heatmap images.
+        If None, plots are automatically displayed in Jupyter (default).
+        If provided, saves to the specified path and closes the plots.
+        Can be a directory path or file path.
+      * **save_mode** (*str**, **default='combined'*) -- How to save the heatmaps when save_path is provided:
+        - "combined": Save both heatmaps in a single combined image (top and bottom)
+        - "separate": Save two separate image files (heatmap_ce.png and heatmap_ace.png)
+        - Ignored if save_path is None
+      * **show_axis_labels** (*bool**, **default=True*) -- Whether to show x and y axis labels (column names and row indices).
+        If True, displays column names and row indices. If False, hides them.
 
-   - **factual_df** (pd.DataFrame): Factual data
-   - **cf_df** (pd.DataFrame): Original counterfactual data
-   - **ace_df** (pd.DataFrame): Refined counterfactual data
-   - **label_column** (str): Name of label column
-   - **save_path** (str, optional): Directory to save figures
-   - **save_mode** (str): "combined", "separate", or "both"
-   - **show_axis_labels** (bool): Whether to show feature/instance names
-   - **figsize** (Tuple[int, int], optional): Figure size
-   - **dpi** (int, optional): Resolution
+   **Returns:**
+      (plot1, plot2) - Heatmap plots (matplotlib Figure objects)
+
+   **Return type:**
+      tuple
 
    **Color Coding:**
 
-   - Light grey: Unchanged
-   - Red: Changed
-   - Dark blue: Label column flip
+   - Light grey: Value unchanged
+   - Red: Feature value changed
+   - Dark blue (#000080): Label column changed
 
-   **Returns:** Tuple[Figure, Figure] or Figure depending on save_mode
+   **Note:**
 
-.. autofunction:: heatmap_binary_changes
+   Typically called through ``cola.heatmap_binary()`` method.
 
-   Helper function for computing binary changes.
+function **heatmap_binary_changes** (factual, counterfactual, target_name, background_color='lightgrey', changed_feature_color='red', show_axis_labels=False)
 
-   Used internally by generate_binary_heatmap.
+   Pure function to generate binary change heatmap (shows if value changed or not).
+
+   This function generates a heatmap that shows binary changes: whether a value
+   changed (red) or remained unchanged (lightgrey). For the target column, changed
+   values are shown in dark blue.
+
+   **Parameters:**
+      * **factual** (*pd.DataFrame**, **optional*) -- Factual DataFrame
+      * **counterfactual** (*pd.DataFrame**, **optional*) -- Counterfactual DataFrame
+      * **target_name** (*str**, **optional*) -- Name of the target/label column
+      * **background_color** (*str**, **optional*) -- Background color for unchanged cells. Defaults to 'lightgrey'.
+      * **changed_feature_color** (*str**, **optional*) -- Color for changed features. Defaults to 'red'.
+      * **show_axis_labels** (*bool**, **optional*) -- Whether to show x and y axis labels. Defaults to False.
+
+   **Returns:**
+      The heatmap figure for changes from factual to counterfactual
+
+   **Return type:**
+      matplotlib.figure.Figure
+
+Direction Heatmap
+=================
+
+function **generate_direction_heatmap** (factual_df, counterfactual_df, refined_counterfactual_df, label_column, numerical_features=None, save_path=None, save_mode='combined', show_axis_labels=True)
+
+   Pure function to generate directional change heatmap visualizations with distinction between numerical and categorical features.
+
+   This function generates heatmaps that show the direction of changes:
+
+   - Numerical features (increased): light blue (#56B4E9)
+   - Numerical features (decreased): light cyan (#7FCDCD)
+   - Categorical features (changed): peru (#CD853F)
+   - Value unchanged: lightgrey
+   - Target column: changed values shown in black
+
+   **Parameters:**
+      * **factual_df** (*pd.DataFrame*) -- Original factual data
+      * **counterfactual_df** (*pd.DataFrame*) -- Full counterfactual data (corresponding counterfactual)
+      * **refined_counterfactual_df** (*pd.DataFrame*) -- Action-limited counterfactual data
+      * **label_column** (*str*) -- Name of the target/label column
+      * **numerical_features** (*list**, **optional*) -- List of numerical feature names.
+        If None, all features (except label) are treated as numerical.
+      * **save_path** (*str**, **optional*) -- Path to save the heatmap images.
+        If None, plots are automatically displayed in Jupyter (default).
+        If provided, saves to the specified path and closes the plots.
+        Can be a directory path or file path.
+      * **save_mode** (*str**, **default='combined'*) -- How to save the heatmaps when save_path is provided:
+        - "combined": Save both heatmaps in a single combined image (top and bottom)
+        - "separate": Save two separate image files
+        - Ignored if save_path is None
+      * **show_axis_labels** (*bool**, **default=True*) -- Whether to show x and y axis labels (column names and row indices).
+        If True, displays column names and row indices. If False, hides them.
+
+   **Returns:**
+      (plot1, plot2) - Heatmap plots (matplotlib Figure objects)
+
+   **Return type:**
+      tuple
+
+   **Note:**
+
+   Typically called through ``cola.heatmap_direction()`` method.
+
+function **heatmap_direction_changes** (factual, counterfactual, target_name, numerical_features=None, unchanged_color='lightgrey', increased_color='#56B4E9', decreased_color='#7FCDCD', categorical_changed_color='#CD853F', show_axis_labels=False)
+
+   Pure function to generate directional change heatmap with distinction between numerical and categorical features.
+
+   This function generates a heatmap that shows the direction of changes:
+
+   - Numerical features (increased): light blue (#56B4E9)
+   - Numerical features (decreased): light cyan (#7FCDCD)
+   - Categorical features (changed): peru (#CD853F)
+   - Value unchanged: lightgrey
+   - Target column: changed values shown in black (unchanged remain lightgrey)
+
+   **Parameters:**
+      * **factual** (*pd.DataFrame**, **optional*) -- Factual DataFrame
+      * **counterfactual** (*pd.DataFrame**, **optional*) -- Counterfactual DataFrame
+      * **target_name** (*str**, **optional*) -- Name of the target/label column
+      * **numerical_features** (*list**, **optional*) -- List of numerical feature names.
+        If None, all features are treated as numerical.
+      * **unchanged_color** (*str**, **optional*) -- Background color for unchanged cells. Defaults to 'lightgrey'.
+      * **increased_color** (*str**, **optional*) -- Color for increased values (numerical only). Defaults to '#56B4E9' (light blue).
+      * **decreased_color** (*str**, **optional*) -- Color for decreased values (numerical only). Defaults to '#7FCDCD' (light cyan).
+      * **categorical_changed_color** (*str**, **optional*) -- Color for categorical feature changes. Defaults to '#CD853F' (peru).
+      * **show_axis_labels** (*bool**, **optional*) -- Whether to show x and y axis labels. Defaults to False.
+
+   **Returns:**
+      The heatmap figure showing direction of changes from factual to counterfactual
+
+   **Return type:**
+      matplotlib.figure.Figure
 
 Stacked Bar Chart
 =================
 
-.. autofunction:: generate_stacked_bar_chart
+function **generate_stacked_bar_chart** (factual_df, counterfactual_df, refined_counterfactual_df, label_column, save_path=None, refined_color='#D9F2D0', counterfactual_color='#FBE3D6', instance_labels=None)
 
-   Generate horizontal stacked bar chart comparing feature changes.
+   Pure function to generate and optionally save a stacked percentage bar chart.
+
+   This is a wrapper around create_stacked_bar_chart() for consistency with other
+   visualization functions.
+
+   Creates a percentage-based stacked bar chart where each bar shows:
+
+   - Green segment (#D9F2D0): percentage of positions modified by refined_counterfactual
+   - Orange segment (#FBE3D6): percentage of additional positions modified only by counterfactual
+   - Total bar length: 100% (representing all counterfactual modifications)
+
+   Labels show both percentage and actual count (e.g., "60.0% (3)")
 
    **Parameters:**
+      * **factual_df** (*pd.DataFrame*) -- Original factual data
+      * **counterfactual_df** (*pd.DataFrame*) -- Full counterfactual data (corresponding counterfactual)
+      * **refined_counterfactual_df** (*pd.DataFrame*) -- Action-limited counterfactual data
+      * **label_column** (*str*) -- Name of the target/label column to exclude from comparison
+      * **save_path** (*str**, **optional*) -- Path to save the chart image. If None, chart is not saved.
+      * **refined_color** (*str**, **default='#D9F2D0'*) -- Color for refined counterfactual modified positions (light green)
+      * **counterfactual_color** (*str**, **default='#FBE3D6'*) -- Color for counterfactual modified positions (light pink/orange)
+      * **instance_labels** (*list**, **optional*) -- Custom labels for instances
 
-   - **factual_df** (pd.DataFrame): Factual data
-   - **cf_df** (pd.DataFrame): Original counterfactual data
-   - **ace_df** (pd.DataFrame): Refined counterfactual data
-   - **label_column** (str): Name of label column
-   - **save_path** (str, optional): Directory to save figure
-   - **refined_color** (str): Color for refined bars (default: "#D9F2D0" green)
-   - **counterfactual_color** (str): Color for original bars (default: "#FBE3D6" orange)
-   - **instance_labels** (List[str], optional): Custom instance labels
-   - **figsize** (Tuple[int, int], optional): Figure size
-   - **dpi** (int, optional): Resolution
+   **Returns:**
+      The stacked bar chart figure
 
-   **Visual Elements:**
+   **Return type:**
+      matplotlib.figure.Figure
 
-   - Y-axis (rows): Each factual instance
-   - X-axis: Percentage of feature changes
-   - Green bar: Refined counterfactual modifications
-   - Orange bar: Original counterfactual modifications
+   **Note:**
 
-   **Returns:** matplotlib Figure object
+   Typically called through ``cola.stacked_bar_chart()`` method.
 
-.. autofunction:: create_stacked_bar_chart
+function **create_stacked_bar_chart** (factual_df, counterfactual_df, refined_counterfactual_df, label_column, save_path=None, refined_color='#D9F2D0', counterfactual_color='#FBE3D6', instance_labels=None)
 
-   Low-level function for creating stacked bar charts.
+   Pure function to create a horizontal stacked percentage bar chart comparing modification positions.
 
-   Used internally by generate_stacked_bar_chart.
+   This function creates a percentage-based stacked bar chart where each bar represents
+   an instance (100% total), showing the proportion of modified positions in refined
+   counterfactual vs. original counterfactual relative to factual data.
+
+   Each bar shows:
+
+   - Green segment (#D9F2D0): percentage of positions modified by refined_counterfactual
+   - Orange segment (#FBE3D6): percentage of additional positions modified only by counterfactual
+   - Total bar length: 100% (representing all counterfactual modifications)
+
+   Labels on bars show both percentage and actual count (e.g., "60.0% (3)")
+
+   **Parameters:**
+      Same as ``generate_stacked_bar_chart()``
+
+   **Returns:**
+      The stacked bar chart figure
+
+   **Return type:**
+      matplotlib.figure.Figure
 
 Diversity Analysis
 ==================
 
-.. autofunction:: generate_diversity_for_all_instances
+function **generate_diversity_for_all_instances** (factual_df, refined_counterfactual_df, ml_model, label_column, cola_data=None)
 
-   Find all minimal feature combinations for all instances.
+   Generate diversity analysis for all instances.
 
-   **Parameters:**
-
-   - **factual_df** (pd.DataFrame): Factual data
-   - **refined_counterfactual_df** (pd.DataFrame): Refined counterfactual data
-   - **ml_model** (Model): Wrapped ML model
-   - **label_column** (str): Name of label column
-   - **cola_data** (COLAData, optional): Data object for transformations
-   - **max_features** (int, optional): Maximum features to try
-
-   **Algorithm:**
-
-   1. For each instance, enumerate all feature subsets
-   2. Test which subsets can flip the label
-   3. Find minimal subsets (no proper subset also works)
-   4. Return all minimal alternatives
-
-   **Returns:** Tuple of (factual_df, List[styled_diversity_dataframes])
-
-.. autofunction:: generate_diversity_dataframe
-
-   Generate diversity DataFrame for a single instance.
+   This is the main pure function that processes all instances. For each instance,
+   it finds minimal feature combinations that can flip the prediction from factual's
+   target value to refined counterfactual's target value (e.g., from 1 to 0).
 
    **Parameters:**
+      * **factual_df** (*pd.DataFrame*) -- Factual data (with label column)
+      * **refined_counterfactual_df** (*pd.DataFrame*) -- Refined counterfactual data (with label column)
+      * **ml_model** (*Model*) -- ML model for prediction
+      * **label_column** (*str*) -- Name of target column
+      * **cola_data** (*COLAData**, **optional*) -- COLAData object for data transformation (needed when using transform_method)
 
-   - **factual_row** (pd.Series): Single factual instance
-   - **refined_counterfactual_row** (pd.Series): Single refined CF
-   - **minimal_combinations** (List[Set[str]]): Minimal feature combinations
-   - **label_column** (str): Label column name
+   **Returns:**
+      * **factual_df** (*pd.DataFrame*) -- Original factual data (copy)
+      * **diversity_styles** (*List[Styler]*) -- List of styled DataFrames (one per instance),
+        each showing all minimal feature combinations for that instance
 
-   **Returns:** pd.DataFrame with all minimal alternatives
+   **Return type:**
+      Tuple[pd.DataFrame, List[Styler]]
 
-.. autofunction:: highlight_diversity_changes
+   **Note:**
 
-   Highlight diversity DataFrame with color coding.
+   Typically called through ``cola.diversity()`` method.
+
+function **find_minimal_feature_combinations** (factual_row, refined_counterfactual_row, ml_model, label_column, cola_data=None)
+
+   Find all minimal feature combinations that can flip the target from factual to refined counterfactual.
+
+   This function finds minimal sets of features that, when changed from factual to refined counterfactual
+   values, will cause the model prediction to change from factual's target value to refined counterfactual's
+   target value (e.g., from 1 to 0).
 
    **Parameters:**
+      * **factual_row** (*pd.Series*) -- Single factual instance (with label column)
+      * **refined_counterfactual_row** (*pd.Series*) -- Single refined counterfactual instance (with label column)
+      * **ml_model** (*Model*) -- ML model for prediction
+      * **label_column** (*str*) -- Name of target column
+      * **cola_data** (*COLAData**, **optional*) -- COLAData object for data transformation (needed when using transform_method)
 
-   - **factual_row** (pd.Series): Factual instance
-   - **diversity_df** (pd.DataFrame): Diversity results
-   - **label_column** (str): Label column name
+   **Returns:**
+      List of minimal feature combinations (each is a set of feature names)
 
-   **Returns:** Styled DataFrame with highlighted changes
-
-.. autofunction:: find_minimal_feature_combinations
-
-   Find minimal feature combinations for single instance.
-
-   **Parameters:**
-
-   - **factual_row** (pd.Series): Single factual instance
-   - **refined_counterfactual_row** (pd.Series): Single refined CF
-   - **ml_model** (Model): Wrapped ML model
-   - **label_column** (str): Label column name
-   - **cola_data** (COLAData, optional): For transformations
+   **Return type:**
+      List[Set[str]]
 
    **Algorithm:**
 
@@ -231,261 +399,174 @@ Diversity Analysis
    Ensures true minimality: if changing feature A alone works, combinations
    like {A, B} are excluded.
 
-   **Returns:** List[Set[str]] of minimal feature combinations
+function **generate_diversity_dataframe** (factual_row, refined_counterfactual_row, minimal_combinations, label_column)
+
+   Generate diversity DataFrame with all minimal combinations.
+
+   The first row shows the refined counterfactual (all changes from refined CF), followed by
+   rows showing each minimal combination. If a minimal combination modifies exactly the same
+   features as the refined counterfactual, it is excluded since it provides no additional diversity.
+
+   **Parameters:**
+      * **factual_row** (*pd.Series*) -- Single factual instance
+      * **refined_counterfactual_row** (*pd.Series*) -- Single refined counterfactual instance
+      * **minimal_combinations** (*List[Set[str]]*) -- List of minimal feature combinations
+      * **label_column** (*str*) -- Name of target column
+
+   **Returns:**
+      DataFrame with first row as refined counterfactual,
+      followed by one row per minimal combination (excluding duplicates)
+
+   **Return type:**
+      pd.DataFrame
+
+function **highlight_diversity_changes** (factual_row, diversity_df, label_column)
+
+   Highlight changes in diversity DataFrame.
+
+   The first row shows the refined counterfactual with all changes highlighted,
+   with yellow background to distinguish it from minimal combinations.
+   Following rows show minimal combinations with only their specific changes highlighted.
+
+   **Parameters:**
+      * **factual_row** (*pd.Series*) -- Single factual instance
+      * **diversity_df** (*pd.DataFrame*) -- DataFrame with diversity combinations (first row is complete counterfactual)
+      * **label_column** (*str*) -- Name of target column
+
+   **Returns:**
+      Styled DataFrame with highlighted changes
+
+   **Return type:**
+      Styler
+
+   **Color Coding:**
+
+   - First row (complete counterfactual): Yellow background with black border
+   - Other rows (minimal combinations): #FFFFCC background with black border
+   - Label column changes: Light gray background with black border
+   - Unchanged values: No highlight
 
 Examples
 ========
 
-Direction Heatmap
------------------
+**Note:** The following examples show direct function calls. In practice, it is recommended
+to call through COLA class methods (see :doc:`cola` documentation).
 
-Basic Usage
-~~~~~~~~~~~
+Highlighted DataFrames
+----------------------
+
+Comparison Format (old -> new)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-    from xai_cola.ce_sparsifier.visualization import generate_direction_heatmap
+   from xai_cola.ce_sparsifier.visualization import highlight_changes_comparison
 
-    fig = generate_direction_heatmap(
-        factual_df=factual,
-        cf_df=counterfactual,
-        ace_df=refined_counterfactual,
-        label_column='Risk',
-        save_path='./results',
-        save_mode='combined'
-    )
+   factual_copy, ce_style, ace_style = highlight_changes_comparison(
+       factual_df=factual,
+       counterfactual_df=counterfactual,
+       refined_counterfactual_df=refined_cf,
+       label_column='Risk'
+   )
 
-Via COLA Instance
+   # Display in Jupyter
+   display(ce_style)
+   display(ace_style)
+
+   # Save to HTML
+   ce_style.to_html('original_cf.html')
+   ace_style.to_html('refined_ace.html')
+
+Final Values Only
 ~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-    from xai_cola import COLA
+   from xai_cola.ce_sparsifier.visualization import highlight_changes_final
 
-    cola = COLA(data=data, ml_model=ml_model)
-    cola.set_policy(matcher="ot", attributor="pshap")
-    cola.refine_counterfactuals(limited_actions=5)
+   factual_copy, ce_style, ace_style = highlight_changes_final(
+       factual_df=factual,
+       counterfactual_df=counterfactual,
+       refined_counterfactual_df=refined_cf,
+       label_column='Risk'
+   )
 
-    # Generate heatmap
-    fig = cola.heatmap_direction(
-        save_path='./results',
-        save_mode='combined',
-        show_axis_labels=True
-    )
+   display(ace_style)
 
 Binary Heatmap
 --------------
 
 .. code-block:: python
 
-    from xai_cola.ce_sparsifier.visualization import generate_binary_heatmap
+   from xai_cola.ce_sparsifier.visualization import generate_binary_heatmap
 
-    fig = generate_binary_heatmap(
-        factual_df=factual,
-        cf_df=counterfactual,
-        ace_df=refined_counterfactual,
-        label_column='Risk',
-        save_path='./results'
-    )
+   plot1, plot2 = generate_binary_heatmap(
+       factual_df=factual,
+       counterfactual_df=counterfactual,
+       refined_counterfactual_df=refined_cf,
+       label_column='Risk',
+       save_path='./results',
+       save_mode='combined',
+       show_axis_labels=True
+   )
+
+Direction Heatmap
+-----------------
+
+.. code-block:: python
+
+   from xai_cola.ce_sparsifier.visualization import generate_direction_heatmap
+
+   plot1, plot2 = generate_direction_heatmap(
+       factual_df=factual,
+       counterfactual_df=counterfactual,
+       refined_counterfactual_df=refined_cf,
+       label_column='Risk',
+       numerical_features=['Age', 'Income', 'Credit amount'],
+       save_path='./results',
+       save_mode='combined',
+       show_axis_labels=True
+   )
 
 Stacked Bar Chart
 -----------------
 
 .. code-block:: python
 
-    from xai_cola.ce_sparsifier.visualization import generate_stacked_bar_chart
+   from xai_cola.ce_sparsifier.visualization import generate_stacked_bar_chart
 
-    fig = generate_stacked_bar_chart(
-        factual_df=factual,
-        cf_df=counterfactual,
-        ace_df=refined_counterfactual,
-        label_column='Risk',
-        save_path='./results'
-    )
-
-Highlighted Comparison
-----------------------
-
-.. code-block:: python
-
-    from xai_cola.ce_sparsifier.visualization import highlight_changes_comparison
-
-    styled_ce, styled_ace = highlight_changes_comparison(
-        factual_df=factual,
-        cf1_df=counterfactual,
-        cf2_df=refined_counterfactual,
-        label_column='Risk'
-    )
-
-    # Display in Jupyter
-    display(styled_ce)
-    display(styled_ace)
-
-    # Save to HTML
-    styled_ce.to_html('original_cf.html')
-    styled_ace.to_html('refined_ace.html')
+   fig = generate_stacked_bar_chart(
+       factual_df=factual,
+       counterfactual_df=counterfactual,
+       refined_counterfactual_df=refined_cf,
+       label_column='Risk',
+       save_path='./results',
+       instance_labels=['Sample 1', 'Sample 2', 'Sample 3']
+   )
 
 Diversity Analysis
 ------------------
 
-Find All Minimal Combinations
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 .. code-block:: python
 
-    from xai_cola.ce_sparsifier.visualization import (
-        generate_diversity_for_all_instances
-    )
+   from xai_cola.ce_sparsifier.visualization import generate_diversity_for_all_instances
 
-    diversity_results = generate_diversity_for_all_instances(
-        factual_df=factual,
-        ml_model=ml_model,
-        target_class=0,
-        max_features=5
-    )
+   factual_copy, diversity_styles = generate_diversity_for_all_instances(
+       factual_df=factual,
+       refined_counterfactual_df=refined_cf,
+       ml_model=ml_model,
+       label_column='Risk',
+       cola_data=data  # Optional, needed if using transform_method
+   )
 
-    # Results: dict mapping instance_id to list of feature combinations
-    for instance_id, combinations in diversity_results.items():
-        print(f"Instance {instance_id}:")
-        for combo in combinations:
-            print(f"  - {combo}")
-
-Highlighted Diversity DataFrame
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-    from xai_cola.ce_sparsifier.visualization import highlight_diversity_changes
-
-    # Get highlighted diversity DataFrame
-    diversity_styled = highlight_diversity_changes(
-        factual_df=factual,
-        diversity_results=diversity_results,
-        label_column='Risk'
-    )
-
-    display(diversity_styled)
-
-Complete Visualization Suite
------------------------------
-
-Generate All Visualizations
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-    import os
-    from xai_cola import COLA
-
-    # Setup and refine
-    cola = COLA(data=data, ml_model=ml_model)
-    cola.set_policy(matcher="ot", attributor="pshap", random_state=42)
-    cola.refine_counterfactuals(limited_actions=5)
-
-    # Create output directory
-    os.makedirs('./results', exist_ok=True)
-
-    # Generate all visualizations
-    cola.heatmap_direction(save_path='./results', save_mode='both')
-    cola.heatmap_binary(save_path='./results', save_mode='both')
-    cola.stacked_bar_chart(save_path='./results')
-
-    # Highlighted DataFrames
-    factual_style, ce_style, ace_style = cola.highlight_changes_final()
-    ce_style.to_html('./results/original_cf.html')
-    ace_style.to_html('./results/refined_ace.html')
-
-    print("✓ All visualizations saved to ./results/")
-
-Customization
-=============
-
-Figure Size and DPI
--------------------
-
-.. code-block:: python
-
-    # High resolution for publications
-    fig = cola.heatmap_direction(
-        save_path='./results',
-        figsize=(14, 10),
-        dpi=300
-    )
-
-    # Large size for presentations
-    fig = cola.stacked_bar_chart(
-        save_path='./results',
-        figsize=(18, 10),
-        dpi=150
-    )
-
-Axis Labels
------------
-
-.. code-block:: python
-
-    # Show feature and instance names
-    fig = cola.heatmap_direction(
-        save_path='./results',
-        show_axis_labels=True
-    )
-
-    # Hide for cleaner look
-    fig = cola.heatmap_direction(
-        save_path='./results',
-        show_axis_labels=False
-    )
-
-Save Modes
-----------
-
-.. code-block:: python
-
-    # Combined: CE and ACE side by side
-    cola.heatmap_direction(save_mode='combined')
-
-    # Separate: Two individual heatmaps
-    cola.heatmap_direction(save_mode='separate')
-
-    # Both: Generate both combined and separate
-    cola.heatmap_direction(save_mode='both')
-
-Multiple Output Formats
------------------------
-
-.. code-block:: python
-
-    # Generate figure
-    fig = cola.heatmap_direction(save_path='./results')
-
-    # Save in multiple formats
-    fig.savefig('./results/heatmap.png', dpi=300, bbox_inches='tight')
-    fig.savefig('./results/heatmap.pdf', bbox_inches='tight')
-    fig.savefig('./results/heatmap.svg', bbox_inches='tight')
-
-Color Schemes
--------------
-
-For direction heatmaps, colors indicate:
-
-- 🟦 **Blue** - Feature value increased
-- 🟧 **Red/Orange** - Feature value decreased
-- ⬜ **White** - No change
-
-For binary heatmaps:
-
-- ⬛ **Black** - Feature changed
-- ⬜ **White** - No change
-
-For highlighted DataFrames:
-
-- 🟦 **Blue background** - Value increased
-- 🟧 **Orange background** - Value decreased
-- ⬜ **White background** - No change
+   # Display results for each instance
+   for i, style in enumerate(diversity_styles):
+       print(f"Instance {i+1} diversity:")
+       display(style)
 
 See Also
 ========
 
-- :doc:`../user_guide/visualization` - Detailed visualization guide
-- :doc:`cola` - COLA main class
-- :doc:`ce_generator` - Counterfactual generators
+- :doc:`cola` - COLA main class (recommended way to call visualizations)
+- :doc:`data` - Data interface
+- :doc:`models` - Model interface

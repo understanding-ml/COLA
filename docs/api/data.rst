@@ -4,205 +4,402 @@ Data API
 
 .. currentmodule:: xai_cola.ce_sparsifier.data
 
-COLAData Class
-==============
+Module contents
+===============
 
-.. autoclass:: COLAData
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
+class **COLAData** (factual_data, label_column, counterfactual_data=None, column_names=None, numerical_features=None, transform_method=None, preprocessor=None)
 
-   Data container for factual and counterfactual explanations.
+   **Bases:** ``object``
 
-   COLAData manages both factual (original) and counterfactual data, handles
-   preprocessing transformations, and provides convenient access methods for
-   features, labels, and metadata.
+   COLA unified data interface - Data container for factual and counterfactual data
 
-   **Key Responsibilities:**
+   Supports managing both factual and counterfactual data simultaneously with automatic
+   validation of data consistency.
 
-   - Store and manage factual and counterfactual data
-   - Track feature types (numerical vs categorical)
-   - Handle data transformations and inverse transformations
-   - Provide consistent data access interface
-   - Support both DataFrame and NumPy array inputs
+   **Parameters:**
+      * **factual_data** (*Union[pd.DataFrame, np.ndarray]*) -- Factual data (original data), must include label column.
+        If DataFrame: checks if label_column exists.
+        If numpy: requires column_names (including label_column).
+      * **label_column** (*str*) -- Label column name, should be the last column by default.
+      * **counterfactual_data** (*Optional[Union[pd.DataFrame, np.ndarray]]**, **optional*) -- Counterfactual data (optional).
+        If DataFrame: checks if columns match factual.
+        If numpy: uses factual's column names.
+      * **column_names** (*Optional[List[str]]**, **optional*) -- Required only when factual_data is numpy.
+        Provide all column names (including label_column), order must match.
+      * **numerical_features** (*Optional[List[str]]**, **optional*) -- List of numerical features. Used to record which features are continuous numerical.
+        If None, defaults to all features being numerical.
+        Other features are automatically inferred as categorical.
+        Note: This parameter only records feature type information, does not perform data conversion. Default is None.
+      * **transform_method** (*Optional[object]**, **optional*) -- Data preprocessor (e.g., sklearn's StandardScaler, ColumnTransformer, etc.).
+        Must have transform() and inverse_transform() methods.
+        Used to perform data transformation before and after generating counterfactuals.
+        **Recommended parameter to use.** Default is None.
+      * **preprocessor** (*Optional[object]**, **optional*) -- **Deprecated alias** for transform_method.
+        Kept for backward compatibility. Use transform_method instead. Default is None.
 
-   .. rubric:: Methods
+   **Raises:**
+      **ValueError** -- If both transform_method and preprocessor are specified, or if required parameters are missing.
 
-   .. autosummary::
-      :nosignatures:
+   **Example:**
 
-      ~COLAData.__init__
-      ~COLAData.add_counterfactuals
-      ~COLAData.get_all_columns
-      ~COLAData.get_feature_columns
-      ~COLAData.get_label_column
-      ~COLAData.get_numerical_features
-      ~COLAData.get_categorical_features
-      ~COLAData.get_factual_all
-      ~COLAData.get_factual_features
-      ~COLAData.get_factual_labels
-      ~COLAData.get_counterfactual_all
-      ~COLAData.get_counterfactual_features
-      ~COLAData.get_counterfactual_labels
-      ~COLAData.get_transformed_factual_features
-      ~COLAData.get_transformed_counterfactual_features
-      ~COLAData.to_numpy_factual_features
-      ~COLAData.to_numpy_counterfactual_features
-      ~COLAData.has_counterfactual
-      ~COLAData.has_transformed_data
-      ~COLAData.get_feature_count
-      ~COLAData.get_sample_count
-      ~COLAData.summary
+   .. code-block:: python
 
-Constructor
------------
+      import pandas as pd
+      from xai_cola.ce_sparsifier.data import COLAData
 
-.. automethod:: COLAData.__init__
+      # Create DataFrame with label column
+      df = pd.DataFrame({
+          'Age': [25, 35, 45],
+          'Income': [30000, 50000, 70000],
+          'HasLoan': ['No', 'Yes', 'No'],
+          'Risk': [1, 0, 1]  # Label column
+      })
 
-Adding Counterfactuals
------------------------
+      # Initialize COLAData
+      data = COLAData(
+          factual_data=df,
+          label_column='Risk',
+          numerical_features=['Age', 'Income']
+      )
 
-.. automethod:: COLAData.add_counterfactuals
+      # Add counterfactuals
+      data.add_counterfactuals(cf_df, with_target_column=True)
 
-Column Information Methods
---------------------------
+      # Access data
+      factual_features = data.get_factual_features()
+      counterfactual_features = data.get_counterfactual_features()
 
-.. automethod:: COLAData.get_all_columns
+   **add_counterfactuals** (counterfactual_data, with_target_column=True)
 
-   Get all column names including the label column.
+      Add or update counterfactual data.
 
-.. automethod:: COLAData.get_feature_columns
+      **Parameters:**
+         * **counterfactual_data** (*Union[pd.DataFrame, np.ndarray]*) -- Counterfactual data.
+           If DataFrame: checks if columns match factual (depends on with_target_column).
+           If numpy: uses factual's column names (depends on with_target_column).
+         * **with_target_column** (*bool**, **default=True*) --
+           If True: counterfactual_data includes target column, same number of columns as factual.
+           If False: counterfactual_data does not include target column, only feature columns.
+           In this case, automatically reverses factual's target column values (0->1, 1->0) and adds them.
 
-   Get feature column names (excludes label).
+      **Raises:**
+         **ValueError** -- If with_target_column=False and factual and counterfactual have inconsistent row counts.
 
-.. automethod:: COLAData.get_label_column
+   **get_all_columns** ()
 
-   Get the label column name.
+      Get all column names (including label column).
 
-.. automethod:: COLAData.get_numerical_features
+      **Returns:**
+         List of all column names
 
-   Get list of numerical feature names.
+      **Return type:**
+         List[str]
 
-.. automethod:: COLAData.get_categorical_features
+   **get_feature_columns** ()
 
-   Get list of categorical feature names.
+      Get feature column names (excluding label column).
 
-Factual Data Access Methods
-----------------------------
+      **Returns:**
+         List of feature column names
 
-.. automethod:: COLAData.get_factual_all
+      **Return type:**
+         List[str]
 
-   Get complete factual DataFrame (features + label).
+   **get_label_column** ()
 
-.. automethod:: COLAData.get_factual_features
+      Get label column name.
 
-   Get factual features only (excludes label).
+      **Returns:**
+         Label column name
 
-.. automethod:: COLAData.get_factual_labels
+      **Return type:**
+         str
 
-   Get factual labels as pandas Series.
+   **get_numerical_features** ()
 
-.. automethod:: COLAData.get_transformed_factual_features
+      Get list of numerical features.
 
-   Get preprocessed/transformed factual features.
-   Returns None if no preprocessor is set.
+      **Returns:**
+         List of numerical feature names
 
-.. automethod:: COLAData.to_numpy_factual_features
+      **Return type:**
+         List[str]
 
-   Get factual features as NumPy array.
+   **get_categorical_features** ()
 
-Counterfactual Data Access Methods
------------------------------------
+      Get list of categorical features (all non-numerical features).
 
-.. automethod:: COLAData.get_counterfactual_all
+      **Returns:**
+         List of categorical feature names
 
-   Get complete counterfactual DataFrame (features + label).
+      **Return type:**
+         List[str]
 
-.. automethod:: COLAData.get_counterfactual_features
+   **get_transformed_feature_columns** ()
 
-   Get counterfactual features only (excludes label).
+      Get transformed feature column names.
 
-.. automethod:: COLAData.get_counterfactual_labels
+      For ColumnTransformer, column order changes to [numerical_features, categorical_features].
+      For other transformers, column order remains unchanged.
 
-   Get counterfactual labels as pandas Series.
+      **Returns:**
+         List of transformed feature column names, or None if transform_method is not set
 
-.. automethod:: COLAData.get_transformed_counterfactual_features
+      **Return type:**
+         Optional[List[str]]
 
-   Get preprocessed/transformed counterfactual features.
-   Returns None if no preprocessor is set.
+   **get_factual_all** ()
 
-.. automethod:: COLAData.to_numpy_counterfactual_features
+      Get complete factual DataFrame including label column.
 
-   Get counterfactual features as NumPy array.
+      **Returns:**
+         Complete factual data (including label column)
 
-Helper Methods
---------------
+      **Return type:**
+         pd.DataFrame
 
-.. automethod:: COLAData.has_counterfactual
+   **get_factual_features** ()
 
-   Check if counterfactual data has been added.
+      Get factual feature data excluding label column.
 
-.. automethod:: COLAData.has_transformed_data
+      **Returns:**
+         Factual feature data (excluding label column)
 
-   Check if preprocessor/transformer is available.
+      **Return type:**
+         pd.DataFrame
 
-.. automethod:: COLAData.get_feature_count
+   **get_factual_labels** ()
 
-   Get number of features (excludes label).
+      Get factual label column.
 
-.. automethod:: COLAData.get_sample_count
+      **Returns:**
+         Factual label column
 
-   Get number of samples in factual data.
+      **Return type:**
+         pd.Series
 
-.. automethod:: COLAData.summary
+   **get_transformed_factual_features** ()
 
-   Print comprehensive data summary.
+      Get transformed factual feature data.
 
-Attributes
-==========
+      **Returns:**
+         Transformed factual feature data, or None if transform_method is not set
 
-.. attribute:: COLAData.factual_df
+      **Return type:**
+         Optional[pd.DataFrame]
 
-   Pandas DataFrame containing factual (original) data with label column.
+      **Example:**
 
-   :type: pandas.DataFrame
+      .. code-block:: python
 
-.. attribute:: COLAData.counterfactual_df
+         data = COLAData(df, label_column='Risk', transform_method=scaler)
+         transformed = data.get_transformed_factual_features()
+         # Used for calculating Shapley values or other computations based on transformed data
 
-   Pandas DataFrame containing counterfactual data. ``None`` until ``add_counterfactuals()`` is called.
+   **get_counterfactual_all** ()
 
-   :type: pandas.DataFrame or None
+      Get complete counterfactual DataFrame including label column.
 
-.. attribute:: COLAData.label_column
+      **Returns:**
+         Complete counterfactual data (including label column)
 
-   Name of the target/label column.
+      **Return type:**
+         pd.DataFrame
 
-   :type: str
+      **Raises:**
+         **ValueError** -- If counterfactual data has not been set
 
-.. attribute:: COLAData.feature_columns
+   **get_counterfactual_features** ()
 
-   List of feature column names (excludes label column).
+      Get counterfactual feature data excluding label column.
 
-   :type: list of str
+      **Returns:**
+         Counterfactual feature data (excluding label column)
 
-.. attribute:: COLAData.numerical_features
+      **Return type:**
+         pd.DataFrame
 
-   List of numerical feature names.
+      **Raises:**
+         **ValueError** -- If counterfactual data has not been set
 
-   :type: list of str
+   **get_counterfactual_labels** ()
 
-.. attribute:: COLAData.categorical_features
+      Get counterfactual label column.
 
-   List of categorical feature names (automatically inferred from non-numerical features).
+      **Returns:**
+         Counterfactual label column
 
-   :type: list of str
+      **Return type:**
+         pd.Series
 
-.. attribute:: COLAData.transform_method
+      **Raises:**
+         **ValueError** -- If counterfactual data has not been set
 
-   Optional preprocessor/transformer with ``transform()`` and ``inverse_transform()`` methods.
+   **get_transformed_counterfactual_features** ()
 
-   :type: object or None
+      Get transformed counterfactual feature data.
+
+      **Returns:**
+         Transformed counterfactual feature data, or None if transform_method or counterfactual is not set
+
+      **Return type:**
+         Optional[pd.DataFrame]
+
+      **Raises:**
+         **ValueError** -- If transform_method is set but counterfactual data has not been set
+
+      **Example:**
+
+      .. code-block:: python
+
+         data = COLAData(df, label_column='Risk', transform_method=scaler)
+         data.add_counterfactuals(cf_df)
+         transformed_cf = data.get_transformed_counterfactual_features()
+         # Used for calculating matching or Q in transformed space
+
+   **has_counterfactual** ()
+
+      Check if counterfactual data has been set.
+
+      **Returns:**
+         True if counterfactual data exists
+
+      **Return type:**
+         bool
+
+   **has_transformed_data** ()
+
+      Check if transformed data exists.
+
+      **Returns:**
+         True if transform_method is set and transformed data exists
+
+      **Return type:**
+         bool
+
+   **get_feature_count** ()
+
+      Get number of features (excluding label column).
+
+      **Returns:**
+         Number of features
+
+      **Return type:**
+         int
+
+   **get_sample_count** ()
+
+      Get number of samples.
+
+      **Returns:**
+         Number of samples
+
+      **Return type:**
+         int
+
+   **to_numpy_factual_features** ()
+
+      Convert factual features to NumPy array.
+
+      **Returns:**
+         Factual feature matrix
+
+      **Return type:**
+         np.ndarray
+
+   **to_numpy_counterfactual_features** ()
+
+      Convert counterfactual features to NumPy array.
+
+      **Returns:**
+         Counterfactual feature matrix
+
+      **Return type:**
+         np.ndarray
+
+      **Raises:**
+         **ValueError** -- If counterfactual data has not been set
+
+   **to_numpy_labels** ()
+
+      Convert labels to NumPy array.
+
+      **Returns:**
+         Label array
+
+      **Return type:**
+         np.ndarray
+
+   **to_numpy_transformed_factual_features** ()
+
+      Convert transformed factual features to NumPy array.
+
+      **Returns:**
+         Transformed factual feature matrix, or None if transform_method is not set
+
+      **Return type:**
+         Optional[np.ndarray]
+
+      **Example:**
+
+      .. code-block:: python
+
+         data = COLAData(df, label_column='Risk', transform_method=scaler)
+         X_transformed = data.to_numpy_transformed_factual_features()
+         # Calculate Shapley values in transformed space
+
+   **to_numpy_transformed_counterfactual_features** ()
+
+      Convert transformed counterfactual features to NumPy array.
+
+      **Returns:**
+         Transformed counterfactual feature matrix, or None if transform_method or counterfactual is not set
+
+      **Return type:**
+         Optional[np.ndarray]
+
+      **Raises:**
+         **ValueError** -- If transform_method is set but counterfactual data has not been set
+
+      **Example:**
+
+      .. code-block:: python
+
+         data = COLAData(df, label_column='Risk', transform_method=scaler)
+         data.add_counterfactuals(cf_df)
+         CF_transformed = data.to_numpy_transformed_counterfactual_features()
+         # Calculate matching distance in transformed space
+
+   **summary** ()
+
+      Get data summary information.
+
+      **Returns:**
+         Dictionary containing data summary
+
+      **Return type:**
+         dict
+
+      **Example:**
+
+      .. code-block:: python
+
+         data = COLAData(df, label_column='Risk')
+         info = data.summary()
+         print(info)
+         # Output:
+         # {
+         #     'factual_samples': 100,
+         #     'feature_count': 10,
+         #     'label_column': 'Risk',
+         #     'all_columns': ['Age', 'Income', ..., 'Risk'],
+         #     'has_counterfactual': True,
+         #     'has_transform_method': True,
+         #     'has_transformed_data': True,
+         #     'counterfactual_samples': 100,
+         #     'transformed_feature_columns': ['Age', 'Income', ...],
+         #     'has_transformed_counterfactual': True
+         # }
 
 Examples
 ========
@@ -212,104 +409,176 @@ Basic Usage with DataFrame
 
 .. code-block:: python
 
-    import pandas as pd
-    from xai_cola.ce_sparsifier.data import COLAData
+   import pandas as pd
+   from xai_cola.ce_sparsifier.data import COLAData
 
-    # Create DataFrame with label column
-    df = pd.DataFrame({
-        'Age': [25, 35, 45],
-        'Income': [30000, 50000, 70000],
-        'HasLoan': ['No', 'Yes', 'No'],
-        'Risk': [1, 0, 1]  # Label column
-    })
+   # Create DataFrame with label column
+   df = pd.DataFrame({
+       'Age': [25, 35, 45],
+       'Income': [30000, 50000, 70000],
+       'HasLoan': ['No', 'Yes', 'No'],
+       'Risk': [1, 0, 1]  # Label column
+   })
 
-    # Initialize COLAData
-    data = COLAData(
-        factual_data=df,
-        label_column='Risk',
-        numerical_features=['Age', 'Income']
-    )
+   # Initialize COLAData
+   data = COLAData(
+       factual_data=df,
+       label_column='Risk',
+       numerical_features=['Age', 'Income']
+   )
 
-    # Check data
-    data.summary()
+   # Check data
+   print(data.summary())
 
 With NumPy Arrays
 -----------------
 
 .. code-block:: python
 
-    import numpy as np
+   import numpy as np
 
-    # NumPy array (must include label)
-    X = np.array([
-        [25, 30000, 0, 1],
-        [35, 50000, 1, 0],
-        [45, 70000, 0, 1]
-    ])
+   # NumPy array (must include label)
+   X = np.array([
+       [25, 30000, 0, 1],
+       [35, 50000, 1, 0],
+       [45, 70000, 0, 1]
+   ])
 
-    # Must provide column names
-    data = COLAData(
-        factual_data=X,
-        label_column='Risk',
-        column_names=['Age', 'Income', 'HasLoan', 'Risk'],
-        numerical_features=['Age', 'Income']
-    )
+   # Must provide column names
+   data = COLAData(
+       factual_data=X,
+       label_column='Risk',
+       column_names=['Age', 'Income', 'HasLoan', 'Risk'],
+       numerical_features=['Age', 'Income']
+   )
 
-With Preprocessor
------------------
-
-.. code-block:: python
-
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.compose import ColumnTransformer
-
-    # Create preprocessor
-    preprocessor = ColumnTransformer([
-        ('num', StandardScaler(), ['Age', 'Income']),
-        ('cat', 'passthrough', ['HasLoan'])
-    ])
-    preprocessor.fit(df[['Age', 'Income', 'HasLoan']])
-
-    # Initialize with preprocessor
-    data = COLAData(
-        factual_data=df,
-        label_column='Risk',
-        numerical_features=['Age', 'Income'],
-        preprocessor=preprocessor
-    )
-
-Adding Counterfactuals
------------------------
+With Preprocessor (StandardScaler)
+-----------------------------------
 
 .. code-block:: python
 
-    # After generating counterfactuals
-    data.add_counterfactuals(cf_df, with_target_column=True)
+   from sklearn.preprocessing import StandardScaler
 
-    # Now can access both
-    print(data.factual_df.shape)
-    print(data.counterfactual_df.shape)
+   # Create and fit preprocessor
+   scaler = StandardScaler()
+   scaler.fit(df[['Age', 'Income', 'HasLoan']])
+
+   # Initialize with preprocessor
+   data = COLAData(
+       factual_data=df,
+       label_column='Risk',
+       numerical_features=['Age', 'Income'],
+       transform_method=scaler
+   )
+
+   # Access transformed data
+   transformed = data.get_transformed_factual_features()
+
+With ColumnTransformer
+----------------------
+
+.. code-block:: python
+
+   from sklearn.compose import ColumnTransformer
+   from sklearn.preprocessing import StandardScaler, OrdinalEncoder
+
+   # Create ColumnTransformer
+   transformer = ColumnTransformer([
+       ('num', StandardScaler(), ['Age', 'Income']),
+       ('cat', OrdinalEncoder(), ['HasLoan'])
+   ])
+   transformer.fit(df[['Age', 'Income', 'HasLoan']])
+
+   # Initialize with ColumnTransformer (use transform_method)
+   data = COLAData(
+       factual_data=df,
+       label_column='Risk',
+       numerical_features=['Age', 'Income'],
+       transform_method=transformer  # Recommended: use transform_method
+   )
+
+   # Transformed column order: [numerical_features, categorical_features]
+   print(data.get_transformed_feature_columns())
+   # Output: ['Age', 'Income', 'HasLoan']
+
+   # Note: preprocessor=transformer also works (backward compatibility)
+   # but transform_method is recommended
+
+Adding Counterfactuals (with target column)
+--------------------------------------------
+
+.. code-block:: python
+
+   # Generate counterfactuals using any explainer (e.g., DiCE)
+   cf_df = explainer.generate_counterfactuals(...)
+
+   # Add counterfactuals (includes target column)
+   data.add_counterfactuals(cf_df, with_target_column=True)
+
+   # Now can access both
+   print(data.get_factual_all().shape)
+   print(data.get_counterfactual_all().shape)
+
+Adding Counterfactuals (without target column)
+-----------------------------------------------
+
+.. code-block:: python
+
+   # If counterfactual data only contains features (no target column)
+   cf_features = cf_df[['Age', 'Income', 'HasLoan']]
+
+   # Automatically reverses factual's target values (0->1, 1->0)
+   data.add_counterfactuals(cf_features, with_target_column=False)
+
+   # Target column is automatically added with reversed values
+   print(data.get_counterfactual_all())
 
 Accessing Data
 --------------
 
 .. code-block:: python
 
-    # Get factual data
-    factual = data.factual_df
+   # Get factual data
+   factual_all = data.get_factual_all()          # DataFrame with label
+   factual_features = data.get_factual_features()  # DataFrame without label
+   factual_labels = data.get_factual_labels()      # Series
 
-    # Get counterfactual data
-    if data.counterfactual_df is not None:
-        cf = data.counterfactual_df
+   # Get counterfactual data
+   if data.has_counterfactual():
+       cf_all = data.get_counterfactual_all()
+       cf_features = data.get_counterfactual_features()
+       cf_labels = data.get_counterfactual_labels()
 
-    # Get feature names
-    features = data.feature_columns
-    num_features = data.numerical_features
-    cat_features = data.categorical_features
+   # Get transformed data
+   if data.has_transformed_data():
+       transformed_factual = data.get_transformed_factual_features()
+       transformed_cf = data.get_transformed_counterfactual_features()
+
+   # Convert to NumPy
+   X_factual = data.to_numpy_factual_features()
+   X_cf = data.to_numpy_counterfactual_features()
+   y = data.to_numpy_labels()
+
+Feature Information
+-------------------
+
+.. code-block:: python
+
+   # Get column information
+   all_columns = data.get_all_columns()           # ['Age', 'Income', 'HasLoan', 'Risk']
+   feature_columns = data.get_feature_columns()   # ['Age', 'Income', 'HasLoan']
+   label_column = data.get_label_column()         # 'Risk'
+
+   # Get feature type information
+   num_features = data.get_numerical_features()   # ['Age', 'Income']
+   cat_features = data.get_categorical_features() # ['HasLoan']
+
+   # Get counts
+   n_features = data.get_feature_count()          # 3
+   n_samples = data.get_sample_count()            # 100
 
 See Also
 ========
 
-- :doc:`../user_guide/data_interface` - Detailed usage guide
-- :doc:`models` - Model interface
 - :doc:`cola` - COLA main class
+- :doc:`models` - Model interface documentation

@@ -4,207 +4,378 @@ COLA API
 
 .. currentmodule:: xai_cola.ce_sparsifier
 
-COLA Class
-==========
+Module contents
+===============
 
-.. autoclass:: COLA
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
+class **COLA** (data, ml_model)
 
-   Main class for refining counterfactual explanations with limited actions.
+   **Bases:** ``object``
 
-   COLA (COunterfactual with Limited Actions) orchestrates the entire workflow of
-   refining counterfactual explanations by limiting the number of feature changes while
-   maintaining prediction flips.
+   COLA (COunterfactual with Limited Actions) - Main class for refining counterfactuals
 
-   **Core Workflow:**
+   This class orchestrates the entire workflow of refining counterfactual explanations
+   by limiting the number of feature changes.
 
-   1. Initialize with factual and counterfactual data
-   2. Set matching and attribution policy
-   3. Query minimum actions needed (optional)
-   4. Refine counterfactuals with action limit
-   5. Visualize and analyze results
+   **Parameters:**
+      * **data** (*COLAData*) -- Data wrapper containing factual and counterfactual data.
+        Must have both factual and counterfactual data set using add_counterfactuals().
+      * **ml_model** (*Model*) -- Machine learning model interface
 
-   .. rubric:: Methods
+   **Raises:**
+      **ValueError** -- If data does not have counterfactual data set
 
-   .. autosummary::
-      :nosignatures:
+   **Example:**
 
-      ~COLA.__init__
-      ~COLA.set_policy
-      ~COLA.query_minimum_actions
-      ~COLA.refine_counterfactuals
-      ~COLA.get_refined_counterfactual
-      ~COLA.get_all_results
-      ~COLA.heatmap_binary
-      ~COLA.heatmap_direction
-      ~COLA.stacked_bar_chart
-      ~COLA.highlight_changes_comparison
-      ~COLA.highlight_changes_final
-      ~COLA.diversity
-      ~COLA.diversity_analysis
+   .. code-block:: python
 
-Constructor
------------
+      from xai_cola import COLA
+      from xai_cola.ce_sparsifier.data import COLAData
+      from xai_cola.ce_sparsifier.models import Model
 
-.. automethod:: COLA.__init__
+      # Initialize data with factual and counterfactual
+      data = COLAData(factual_data=df, label_column='Risk')
+      data.add_counterfactuals(cf_df)  # Must add counterfactuals first
 
-Policy Configuration
---------------------
+      # Initialize model
+      model = Model(ml_model, backend='sklearn')
 
-.. automethod:: COLA.set_policy
+      # Use COLA (counterfactual data is required)
+      cola = COLA(data=data, ml_model=model)
 
-Query Methods
--------------
+      # Set policy with random_state for reproducibility
+      cola.set_policy(matcher='ect', attributor='pshap', random_state=42)
 
-.. automethod:: COLA.query_minimum_actions
+      # Get only refined counterfactual
+      refined_cf = cola.get_refined_counterfactual(limited_actions=10)
 
-Refinement Methods
-------------------
+      # Or get all results
+      factual_df, counterfactual_df, refined_cf_df = cola.get_all_results(limited_actions=10)
 
-.. automethod:: COLA.refine_counterfactuals
+      # Restrict modifications to specific features only
+      refined_cf = cola.get_refined_counterfactual(
+          limited_actions=10,
+          features_to_vary=['Age', 'Credit amount']  # Only modify these features
+      )
 
-.. automethod:: COLA.get_refined_counterfactual
+   **set_policy** (matcher='ot', attributor='pshap', random_state=42, \*\*kwargs)
 
-.. automethod:: COLA.get_all_results
+      Set the refinement policy.
 
-Visualization Methods
----------------------
+      **Parameters:**
+         * **matcher** (*str*) -- Matching strategy between factual and counterfactual.
+           Options: "ot" (Optimal Transport), "ect" (Exact Matching),
+           "nn" (Nearest Neighbor), "cem" (Coarsened Exact Matching). Default is "ot".
+         * **attributor** (*str*) -- Feature attribution method.
+           Options: "pshap" (PSHAP with joint probability). Default is "pshap".
+         * **random_state** (*int**, **optional*) -- Random seed used to control the reproducibility of counterfactual actions sampling.
+           The same random_state means the same action sequence is sampled whenever counterfactuals or minimum-actions are queried.
+           Default is 42.
+         * **\*\*kwargs** -- Additional parameters for matcher and attributor
 
-.. automethod:: COLA.heatmap_binary
+   **get_refined_counterfactual** (limited_actions, features_to_vary=None)
 
-   Generate binary heatmap showing which features changed.
+      Get counterfactuals refined with limited actions.
 
-   **Color Coding:**
+      **Parameters:**
+         * **limited_actions** (*int*) -- Maximum number of feature changes to apply
+         * **features_to_vary** (*List[str]**, **optional*) -- List of feature names that are allowed to be modified.
+           If None, all features can be modified (default).
+           If specified, only these features will be considered for modification.
 
-   - Light grey: Unchanged features
-   - Red: Changed features
-   - Dark blue: Label column (prediction flip)
+      **Returns:**
+         Refined counterfactual DataFrame with target column
 
-   **Returns:** Tuple of (counterfactual_fig, refined_counterfactual_fig)
+      **Return type:**
+         pd.DataFrame
 
-.. automethod:: COLA.heatmap_direction
+      **Raises:**
+         **ValueError** -- If any feature name in features_to_vary is not a valid feature column name.
 
-   Generate directional heatmap showing how features changed.
+   **get_all_results** (limited_actions, features_to_vary=None)
 
-   **Color Coding:**
+      Get all results: factual, counterfactual, and refined counterfactual.
 
-   - Light blue (#56B4E9): Numerical feature increased
-   - Light cyan (#7FCDCD): Numerical feature decreased
-   - Peru (#CD853F): Categorical feature changed
-   - Black: Label column (prediction flip)
-   - Light grey: Unchanged
+      **Parameters:**
+         * **limited_actions** (*int*) -- Maximum number of feature changes to apply
+         * **features_to_vary** (*List[str]**, **optional*) -- List of feature names that are allowed to be modified.
+           If None, all features can be modified (default).
+           If specified, only these features will be considered for modification.
 
-   **Returns:** Tuple of (counterfactual_fig, refined_counterfactual_fig)
+      **Returns:**
+         (factual_df, counterfactual_df, refined_counterfactual_df)
+         All are pd.DataFrame with target column
 
-.. automethod:: COLA.stacked_bar_chart
+      **Return type:**
+         tuple
 
-   Generate horizontal stacked bar chart comparing feature changes.
+      **Raises:**
+         **ValueError** -- If any feature name in features_to_vary is not a valid feature column name.
 
-   **Visual Elements:**
+   **query_minimum_actions** (features_to_vary=None)
 
-   - Y-axis (rows): Each factual instance
-   - X-axis: Percentage of feature changes
-   - Green bar: Refined counterfactual modifications
-   - Orange bar: Original counterfactual modifications
+      Find the minimum number of actions needed.
 
-   Shows that refined counterfactuals require fewer changes.
+      **Parameters:**
+         **features_to_vary** (*List[str]**, **optional*) -- List of feature names that are allowed to be modified.
+         If None, all features can be modified (default).
+         If specified, only these features will be considered for modification.
 
-   **Returns:** Figure object
+      **Returns:**
+         Minimum number of actions
 
-.. automethod:: COLA.highlight_changes_comparison
+      **Return type:**
+         int
 
-   Highlight DataFrame with format "old → new" showing changes.
+      **Raises:**
+         **ValueError** -- If any feature name in features_to_vary is not a valid feature column name.
 
-   **Returns:** Tuple of (factual_styled, counterfactual_styled, refined_styled)
+   **highlight_changes_comparison** ()
 
-.. automethod:: COLA.highlight_changes_final
+      Highlight changes in the dataframes with comparison format (old -> new).
 
-   Highlight DataFrame showing only final values with color coding.
+      This is a thin wrapper around the pure visualization function. It retrieves
+      pre-computed results from the COLA instance and passes them to the visualization
+      function. Must call get_refined_counterfactual() or get_all_results() first.
 
-   **Returns:** Tuple of (factual_styled, counterfactual_styled, refined_styled)
+      This method displays changes in the format "factual_value -> counterfactual_value"
+      to show both the original and modified values side by side.
 
-Diversity Analysis
-------------------
+      **Returns:**
+         * **factual_df** (*pandas.DataFrame*) -- Original factual data
+         * **ce_style** (*pandas.io.formats.style.Styler*) -- Styled DataFrame showing factual → full counterfactual
+         * **ace_style** (*pandas.io.formats.style.Styler*) -- Styled DataFrame showing factual → action-limited counterfactual
 
-.. automethod:: COLA.diversity
+      **Return type:**
+         tuple
 
-   Find all minimal feature combinations that achieve label flip.
+      **Usage:**
 
-   Uses exhaustive enumeration to find alternative minimal paths.
-   Ensures true minimality: if one feature alone works, combinations
-   with that feature are excluded.
+      .. code-block:: python
 
-   **Returns:** Tuple of (factual_df, List[styled_dataframes])
+         factual_df, ce_style, ace_style = refiner.highlight_changes_comparison()
+         # Display in Jupyter notebook
+         display(ce_style)
+         # Save as HTML
+         ce_style.to_html('changes.html')
 
-.. automethod:: COLA.diversity_analysis
+      **Raises:**
+         **ValueError** -- If refined counterfactuals have not been generated yet.
+         Must call get_refined_counterfactual() or get_all_results() method first.
 
-   Perform diversity analysis for all instances.
+   **highlight_changes_final** ()
 
-   **Returns:** Dictionary mapping instance indices to minimal feature combinations
+      Highlight changes in the dataframes showing only the final values.
 
-Examples
-========
+      This is a thin wrapper around the pure visualization function. It retrieves
+      pre-computed results from the COLA instance and passes them to the visualization
+      function. Must call get_refined_counterfactual() or get_all_results() first.
 
-Basic Usage
------------
+      This method displays only the final counterfactual values without showing
+      the "factual -> counterfactual" format, making it cleaner for presentation.
 
-.. code-block:: python
+      **Returns:**
+         * **factual_df** (*pandas.DataFrame*) -- Original factual data
+         * **ce_style** (*pandas.io.formats.style.Styler*) -- Styled DataFrame showing only full counterfactual values
+         * **ace_style** (*pandas.io.formats.style.Styler*) -- Styled DataFrame showing only action-limited counterfactual values
 
-    from xai_cola import COLA
-    from xai_cola.ce_sparsifier.data import COLAData
-    from xai_cola.ce_sparsifier.models import Model
+      **Return type:**
+         tuple
 
-    # Initialize
-    data = COLAData(factual_data=df, label_column='Risk')
-    ml_model = Model(model=trained_model, backend="sklearn")
+      **Usage:**
 
-    # Generate counterfactuals (using any explainer)
-    # ... cf_df = explainer.generate(...) ...
-    data.add_counterfactuals(cf_df, with_target_column=True)
+      .. code-block:: python
 
-    # Create COLA instance
-    cola = COLA(data=data, ml_model=ml_model)
+         factual_df, ce_style, ace_style = refiner.highlight_changes_final()
+         # Display in Jupyter notebook
+         display(ce_style)
+         # Save as HTML
+         ce_style.to_html('changes.html')
 
-    # Set refinement policy
-    cola.set_policy(matcher='ot', attributor='pshap', random_state=42)
+      **Raises:**
+         **ValueError** -- If refined counterfactuals have not been generated yet.
+         Must call get_refined_counterfactual() or get_all_results() method first.
 
-    # Refine counterfactuals
-    refined_cf = cola.refine_counterfactuals(limited_actions=5)
+   **heatmap_binary** (save_path=None, save_mode='combined', show_axis_labels=True)
 
-    # Visualize
-    cola.heatmap_direction(save_path='./results')
-    cola.stacked_bar_chart(save_path='./results')
+      Generate binary change heatmap visualizations (shows if value changed or not).
 
-With Feature Restrictions
---------------------------
+      This is a thin wrapper around the pure visualization function. It retrieves
+      pre-computed results from the COLA instance and passes them to the visualization
+      function. Must call get_refined_counterfactual() or get_all_results() first.
 
-.. code-block:: python
+      This method generates heatmaps showing binary changes: whether a value
+      changed (red) or remained unchanged (lightgrey).
 
-    # Only allow certain features to change
-    refined_cf = cola.refine_counterfactuals(
-        limited_actions=5,
-        features_to_vary=['Income', 'Duration', 'LoanAmount']
-    )
+      **Parameters:**
+         * **save_path** (*str**, **optional*) -- Path to save the heatmap images.
+           If None, plots are automatically displayed in Jupyter (default).
+           If provided, saves to the specified path and closes the plots.
+           Can be a directory path or file path.
+         * **save_mode** (*str**, **default="combined"*) -- How to save the heatmaps when save_path is provided:
+           - "combined": Save both heatmaps in a single combined image (top and bottom)
+           - "separate": Save two separate image files (heatmap_ce.png and heatmap_ace.png)
+           - Ignored if save_path is None
+         * **show_axis_labels** (*bool**, **default=True*) -- Whether to show x and y axis labels (column names and row indices).
+           If True, displays column names and row indices. If False, hides them.
 
-Getting All Results
--------------------
+      **Returns:**
+         (plot1, plot2) - Heatmap plots (matplotlib Figure objects)
 
-.. code-block:: python
+      **Return type:**
+         tuple
 
-    # Get factual, original CF, and refined ACE
-    factual_df, ce_df, ace_df = cola.get_all_results(limited_actions=5)
+      **Examples:**
 
-    # Compare
-    print("Original changes:", (factual_df != ce_df).sum().sum())
-    print("Refined changes:", (factual_df != ace_df).sum().sum())
+      .. code-block:: python
 
-See Also
-========
+         # Display plots in Jupyter (no saving)
+         refiner.heatmap_binary()
+         # Plots are automatically displayed in Jupyter notebook
 
-- :doc:`../user_guide/matching_policies` - Guide on matching strategies
-- :doc:`../user_guide/visualization` - Visualization guide
-- :doc:`data` - Data interface documentation
-- :doc:`models` - Model interface documentation
+         # Save as combined image
+         refiner.heatmap_binary(save_path='./results', save_mode='combined')
+         # Creates: ./results/combined_heatmap.png (two heatmaps stacked vertically)
+
+      **Raises:**
+         **ValueError** -- If refined counterfactuals have not been generated yet.
+         Must call get_refined_counterfactual() or get_all_results() method first.
+
+   **heatmap_direction** (save_path=None, save_mode='combined', show_axis_labels=True)
+
+      Generate directional change heatmap visualizations (shows if value increased, decreased, or unchanged).
+
+      This is a thin wrapper around the pure visualization function. It retrieves
+      pre-computed results from the COLA instance and passes them to the visualization
+      function. Must call get_refined_counterfactual() or get_all_results() first.
+
+      This method generates heatmaps showing the direction of changes:
+
+      - Numerical features (increased): light blue
+      - Numerical features (decreased): light cyan
+      - Categorical features (changed): peru (soft warm tone)
+      - Value unchanged: lightgrey
+      - Target column: changed values shown in black
+
+      **Parameters:**
+         * **save_path** (*str**, **optional*) -- Path to save the heatmap images.
+           If None, plots are automatically displayed in Jupyter (default).
+           If provided, saves to the specified path and closes the plots.
+           Can be a directory path or file path.
+         * **save_mode** (*str**, **default="combined"*) -- How to save the heatmaps when save_path is provided:
+           - "combined": Save both heatmaps in a single combined image (top and bottom)
+           - "separate": Save two separate image files
+           - Ignored if save_path is None
+         * **show_axis_labels** (*bool**, **default=True*) -- Whether to show x and y axis labels (column names and row indices).
+           If True, displays column names and row indices. If False, hides them.
+
+      **Returns:**
+         (plot1, plot2) - Heatmap plots (matplotlib Figure objects)
+
+      **Return type:**
+         tuple
+
+      **Examples:**
+
+      .. code-block:: python
+
+         # Display plots in Jupyter (no saving)
+         refiner.heatmap_direction()
+         # Plots are automatically displayed in Jupyter notebook
+
+         # Save as combined image
+         refiner.heatmap_direction(save_path='./results', save_mode='combined')
+         # Creates: ./results/combined_direction_heatmap.png
+
+      **Raises:**
+         **ValueError** -- If refined counterfactuals have not been generated yet.
+         Must call get_refined_counterfactual() or get_all_results() method first.
+
+   **stacked_bar_chart** (save_path=None, refined_color='#D9F2D0', counterfactual_color='#FBE3D6', instance_labels=None)
+
+      Generate a horizontal stacked percentage bar chart comparing modification positions.
+
+      This is a thin wrapper around the pure visualization function. It retrieves
+      pre-computed results from the COLA instance and passes them to the visualization
+      function. Must call get_refined_counterfactual() or get_all_results() first.
+
+      This method creates a percentage-based stacked bar chart where each bar represents
+      an instance (100% total), showing the proportion of modified positions in refined
+      counterfactual vs. original counterfactual relative to factual data.
+
+      Each bar shows:
+
+      - Green segment (#D9F2D0): percentage of positions modified by refined_counterfactual
+      - Orange segment (#FBE3D6): percentage of additional positions modified only by counterfactual
+      - Total bar length: 100% (representing all counterfactual modifications)
+
+      Labels on bars show both percentage and actual count (e.g., "60.0% (3)")
+
+      **Parameters:**
+         * **save_path** (*str**, **optional*) -- Path to save the chart image. If None, chart is not saved.
+           Can be a directory path or file path.
+         * **refined_color** (*str**, **default='#D9F2D0'*) -- Color for refined counterfactual modified positions (light green)
+         * **counterfactual_color** (*str**, **default='#FBE3D6'*) -- Color for counterfactual modified positions (light pink/orange)
+         * **instance_labels** (*list**, **optional*) -- Custom labels for instances. If None, uses "instance 1", "instance 2", etc.
+           Length must match the number of instances.
+
+      **Returns:**
+         The stacked bar chart figure
+
+      **Return type:**
+         matplotlib.figure.Figure
+
+      **Examples:**
+
+      .. code-block:: python
+
+         # Display chart in Jupyter (no saving)
+         fig = refiner.stacked_bar_chart()
+         # Chart is automatically displayed in Jupyter notebook
+
+         # Save chart to file
+         fig = refiner.stacked_bar_chart(save_path='./results')
+         # Creates: ./results/stacked_bar_chart.png
+
+         # Custom instance labels and colors
+         fig = refiner.stacked_bar_chart(
+             instance_labels=['Sample 1', 'Sample 2', 'Sample 3', 'Sample 4'],
+             refined_color='#D9F2D0',
+             counterfactual_color='#FBE3D6'
+         )
+
+      **Raises:**
+         **ValueError** -- If refined counterfactuals have not been generated yet.
+         Must call get_refined_counterfactual() or get_all_results() method first.
+
+   **diversity** ()
+
+      Generate diversity analysis showing minimal feature combinations that can flip the target.
+
+      This method finds all minimal feature combinations that can change the prediction
+      from the factual's target value to the refined counterfactual's target value (e.g., from 1 to 0).
+      For each instance, it returns styled DataFrames showing the different minimal combinations.
+
+      The algorithm:
+
+      1. For each instance, identify features that differ between factual and refined counterfactual
+      2. Test combinations of increasing size (1 feature, 2 features, etc.)
+      3. Find minimal sets that flip the prediction from factual target to refined counterfactual target
+      4. Skip larger combinations that contain successful smaller combinations
+
+      **Returns:**
+         * **factual_df** (*pd.DataFrame*) -- Original factual data (copy)
+         * **diversity_styles** (*List[Styler]*) -- List of styled DataFrames (one per instance),
+           each showing all minimal feature combinations for that instance
+
+      **Return type:**
+         Tuple[pd.DataFrame, List[Styler]]
+
+      **Example:**
+
+      .. code-block:: python
+
+         factual_df, diversity_styles = sparsifier.diversity()
+         # Display results for each instance
+         for i, style in enumerate(diversity_styles):
+             print(f"Instance {i+1} diversity:")
+             display(style)
