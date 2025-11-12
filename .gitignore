@@ -68,3 +68,7 @@ logs/
 # Temporary files
 *.tmp
 tmp/
+
+# Deployment guides
+READTHEDOCS_DEPLOYMENT.md
+RELEASE_GUIDE.md
