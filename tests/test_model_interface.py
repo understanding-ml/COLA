@@ -19,31 +19,31 @@ class TestModelInterface:
     
     def test_model_predict(self, sample_model, sample_data):
         """Test model prediction."""
-        
+
         X = sample_data.drop(columns=['target'])
         y = sample_data['target']
-        
+
         clf = LogisticRegression(random_state=42)
         clf.fit(X, y)
-        
+
         model = Model(model=clf, backend="sklearn")
-        
-        predictions = model.predict(X.values)
+
+        predictions = model.predict(X)
         assert len(predictions) == len(X)
         assert all(pred in [0, 1] for pred in predictions)
     
     def test_model_predict_proba(self, sample_model, sample_data):
         """Test model prediction probabilities."""
-        
+
         X = sample_data.drop(columns=['target'])
         y = sample_data['target']
-        
+
         clf = LogisticRegression(random_state=42)
         clf.fit(X, y)
-        
+
         model = Model(model=clf, backend="sklearn")
-        
-        proba = model.predict_proba(X.values)
+
+        proba = model.predict_proba(X)
         assert len(proba) == len(X)
         assert all(0 <= p <= 1 for p in proba)
 
