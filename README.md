@@ -110,6 +110,18 @@ for c in categorical_features:
 
 # Train the model
 pipe.fit(X_train, y_train)
+
+# Select factual instances in dataframe df: filter test set to predicted class 1, optionally subsample
+TARGET_COLUMN_NAME = 'Risk'
+N = 10  # number of rows to sample; set to None to return all
+RANDOM_STATE = 42
+
+X_df = X_test.copy()
+X_df[TARGET_COLUMN_NAME] = pipe.predict(X_test)
+
+df = X_df.loc[X_df[TARGET_COLUMN_NAME] == 1]
+if N is not None and len(df) > N:
+    df = df.sample(n=N, random_state=RANDOM_STATE)
 ```
 
 **Step1: Initialize the data interface**
@@ -199,7 +211,7 @@ sparsifier.set_policy(
 limited_actions = sparsifier.query_minimum_actions()
 
 # Sparsify counterfactuals
-sparsified_counterfactuals_df = sparsifier.sparsify_counterfactuals(limited_actions=limited_actions)
+sparsified_counterfactuals_df = sparsifier.get_refined_counterfactual(limited_actions=limited_actions)
 display(sparsified_counterfactuals_df)
 ```
 
