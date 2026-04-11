@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xai-cola"
-version = "0.1.0"
+version = "0.1.1"
 description = "COunterfactual explanations with Limited Actions (COLA)"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -76,7 +76,7 @@ docs = [
 
 [project.urls]
 Homepage = "https://github.com/understanding-ml/COLA"
-Documentation = "https://cola.readthedocs.io/"
+Documentation = "https://cola-docs.readthedocs.io/en/latest/"
 Repository = "https://github.com/understanding-ml/COLA"
 Issues = "https://github.com/understanding-ml/COLA/issues"
 

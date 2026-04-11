@@ -6,7 +6,8 @@
 
 # COunterfactual explanations with Limited Actions (COLA)
 
-[![arXiv](https://img.shields.io/badge/arXiv-2410.05419-B31B1B.svg)](https://arxiv.org/pdf/2410.05419)
+[![arXiv](https://img.shields.io/badge/arXiv-2602.21845-B31B1B.svg)](https://arxiv.org/pdf/2602.21845)
+[![ICLR2026](https://img.shields.io/badge/ICLR-2026-blue.svg)](https://arxiv.org/pdf/2602.21845)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![PyPI](https://img.shields.io/pypi/v/xai-cola.svg)](https://pypi.org/project/xai-cola/)
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
