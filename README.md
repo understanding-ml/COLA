@@ -251,13 +251,13 @@ fig = sparsifier.stacked_bar_chart(save_path='./results')
 
 
 
-## Citing
+## Citation
 
 The python library xai-cola is described in the following paper:
-Lin Zhu, Lei You (2025). xai-cola: A python library for sparsifying counterfactual explanations.
+[Zhu, L., & You, L. (2026). xai-cola: A Python library for sparsifying counterfactual explanations. arXiv preprint arXiv:2602.21845.](https://arxiv.org/abs/2602.21845)
 
 What's more, the theoretical foundation of COLA is described in the following paper:
-Lei You, Yijun Bian, and Lele Cao (2024). [Refining Counterfactual Explanations With Joint-Distribution-Informed Shapley Towards Actionable Minimality](https://arxiv.org/pdf/2410.05419).
+[You, L., Bian, Y., & Cao, L. (2026). Joint Distribution–Informed Shapley Values for Sparse Counterfactual Explanations. In The Fourteenth International Conference on Learning Representations.](https://arxiv.org/pdf/2410.05419).
 
 ## Contributing
 
